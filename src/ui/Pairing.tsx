@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 import { decodeBundle, encodeBundle, candidateSummary, hasMdnsOnlyCandidates, type SignalBundle } from '../net/signaling'
+import { CornerFlourish, Insignia, MetallicDivider } from './FantasyIcons'
 import { Shell } from './screens'
 
 type Props = {
@@ -45,7 +46,7 @@ export function Pairing({
     setIps(candidateSummary(bundle))
     setMdnsOnly(hasMdnsOnlyCandidates(bundle))
     try {
-      setQr(await QRCode.toDataURL(encoded, { margin: 1, width: 280, errorCorrectionLevel: 'L' }))
+      setQr(await QRCode.toDataURL(encoded, { margin: 1, width: 260, errorCorrectionLevel: 'L' }))
     } catch {
       setQr(null)
       setError('Connection code is too large for a QR code. Copy the text instead.')
@@ -65,7 +66,7 @@ export function Pairing({
   const processBundle = async (rawText: string) => {
     const trimmed = rawText.trim()
     if (!trimmed) {
-      setError('Please paste or scan a connection code first')
+      setError('Please paste or scan a connection token first')
       return
     }
     setError(null)
@@ -74,18 +75,18 @@ export function Pairing({
       const bundle = await decodeBundle(trimmed)
       if (role === 'host') {
         if (bundle.role !== 'answer') {
-          throw new Error('Expected a guest answer code, but got an offer')
+          throw new Error('Expected a guest answer token, but got an offer')
         }
         await onAcceptAnswer(bundle)
       } else {
         if (bundle.role !== 'offer') {
-          throw new Error('Expected a host offer code, but got an answer')
+          throw new Error('Expected a host offer token, but got an answer')
         }
         const answer = await onAcceptOffer(bundle)
         await showBundle(answer)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid connection code')
+      setError(e instanceof Error ? e.message : 'Invalid connection token')
     } finally {
       setApplying(false)
     }
@@ -130,7 +131,11 @@ export function Pairing({
           loop()
         }
       } catch (err) {
-        setError(err instanceof Error && err.message.includes('HTTPS') ? 'Camera requires HTTPS/localhost. Copy & paste the code instead.' : 'Camera unavailable. Paste the connection code instead.')
+        setError(
+          err instanceof Error && err.message.includes('HTTPS')
+            ? 'Camera requires HTTPS/localhost. Copy & paste the code instead.'
+            : 'Camera unavailable. Paste the connection code instead.',
+        )
         setScan(false)
       }
     })()
@@ -174,82 +179,139 @@ export function Pairing({
   }
 
   return (
-    <Shell>
-      <button className="text-xs tracking-[0.2em] text-amber" onClick={onCancel}>← CANCEL</button>
-      <h2 className="mt-3 font-display text-3xl">{role === 'host' ? 'Host pairing' : 'Join pairing'}</h2>
-      <p className="mt-2 text-sm text-ivory/70">
-        This is a genuine WebRTC handshake: session description plus ICE candidates. A room code is not a connection.
-        Both devices must be on the same Wi-Fi or phone hotspot. No cloud signaling server is used.
-      </p>
-      <p className="mt-2 text-xs uppercase tracking-widest text-ivory/50">{status} · {detail}</p>
-      <p className="mt-1 text-xs text-ivory/50">Playing as {localName} · {sessionId || 'session pending'}</p>
-      {ips ? <p className="mt-1 text-xs text-amber">Advertised host candidates: {ips}</p> : null}
-      {mdnsOnly ? (
-        <p className="mt-2 rounded-lg bg-amber/15 p-2 text-xs text-amber">
-          Notice: Browser advertised mDNS (.local) candidates. If devices cannot connect across your router, tap 'Scan QR' to allow camera (which unmasks real LAN IPs in Chrome/Safari) or connect both to a phone hotspot.
+    <Shell bg="/bunker-bg.jpg">
+      <div className="df-panel mx-auto my-auto w-full max-w-xl p-6 sm:p-8 relative">
+        <CornerFlourish position="top-left" color="#C59B61" size={24} />
+        <CornerFlourish position="top-right" color="#C59B61" size={24} />
+        <CornerFlourish position="bottom-left" color="#C59B61" size={24} />
+        <CornerFlourish position="bottom-right" color="#C59B61" size={24} />
+
+        <div className="flex items-center justify-between border-b border-[#AAA69B]/20 pb-3">
+          <div className="flex items-center gap-2.5">
+            <Insignia className="h-7 w-7" />
+            <h2 className="font-cinzel text-base sm:text-lg font-bold tracking-[0.22em] text-[#E8E4DC]">
+              {role === 'host' ? 'TRANSMIT HOST OFFER' : 'JOIN EXPEDITION'}
+            </h2>
+          </div>
+
+          <button
+            onClick={onCancel}
+            className="df-btn-silver px-3 py-1 text-xs tracking-wider cursor-pointer"
+          >
+            ← Cancel
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-[#AAA69B] leading-relaxed font-sans">
+          This is a genuine WebRTC handshake: session description plus ICE network candidates. Both devices must be on the same local Wi-Fi or phone hotspot. No cloud server is used.
         </p>
-      ) : null}
-      {role === 'host' && !code ? (
-        <button className="mt-4 rounded-2xl bg-amber px-4 py-3 text-charcoal font-semibold" onClick={() => void makeOffer()}>
-          Generate connection offer
-        </button>
-      ) : null}
-      {qr ? <img src={qr} alt="Connection QR" className="mx-auto mt-4 w-56 rounded-xl bg-ivory p-2 shadow-lg" /> : null}
-      {code ? (
-        <div className="mt-3">
-          <textarea readOnly className="h-24 w-full rounded-xl bg-black/40 p-2 text-[10px] text-ivory/80 font-mono" value={code} />
-          <button
-            className={`mt-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${copied ? 'border-amber bg-amber/20 text-amber' : 'border-ivory/20'}`}
-            onClick={() => void copyCode()}
-          >
-            {copied ? '✓ Copied to clipboard!' : 'Copy connection code'}
-          </button>
+
+        <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-[#AAA69B]/70">
+          <span>Operative: <strong className="text-[#C59B61]">{localName}</strong></span>
+          <span>Status: <strong className="text-[#E8E4DC]">{status}</strong></span>
         </div>
-      ) : null}
-      <div className="mt-5">
-        <p className="text-sm font-semibold">{role === 'host' ? 'Paste the guest answer' : 'Paste or scan the host offer'}</p>
-        <textarea
-          className="mt-2 h-24 w-full rounded-xl bg-black/40 p-2 text-[10px] font-mono text-ivory"
-          placeholder="Paste LL1.... code here or tap Scan QR"
-          value={paste}
-          onChange={(e) => setPaste(e.target.value)}
-        />
-        <div className="mt-2 flex flex-wrap gap-2">
+        {detail ? <p className="mt-1 text-[11px] font-mono text-[#AAA69B]">{detail}</p> : null}
+        {sessionId ? <p className="mt-0.5 text-[10px] font-mono text-[#AAA69B]/50">Session ID: {sessionId}</p> : null}
+
+        {ips ? <p className="mt-1 text-[11px] font-mono text-[#C59B61]">Advertised LAN candidates: {ips}</p> : null}
+        {mdnsOnly ? (
+          <p className="mt-2 rounded-xs border border-[#C59B61]/40 bg-[#C59B61]/10 p-2 text-xs text-[#C59B61]">
+            Notice: Browser generated mDNS (.local) candidates. Tap 'Scan QR' to allow camera (which unmasks real LAN IPs in Chrome/Safari) or connect both devices to a phone hotspot.
+          </p>
+        ) : null}
+
+        {role === 'host' && !code ? (
           <button
-            disabled={applying}
-            className="rounded-xl bg-amber px-4 py-2 text-sm font-semibold text-charcoal disabled:opacity-50"
-            onClick={() => void processBundle(paste)}
+            className="mt-4 df-btn-gold w-full py-3.5 text-xs font-bold tracking-[0.22em] cursor-pointer"
+            onClick={() => void makeOffer()}
           >
-            {applying ? 'Applying…' : 'Apply'}
+            Forge Host Signaling Bundle →
           </button>
-          <button
-            className="rounded-xl border border-ivory/20 px-4 py-2 text-sm"
-            onClick={() => void pasteClipboard()}
-          >
-            Paste from Clipboard
-          </button>
-          <button
-            className="rounded-xl border border-ivory/20 px-4 py-2 text-sm"
-            onClick={() => setScan((s) => !s)}
-          >
-            {scan ? 'Stop scan' : 'Scan QR'}
-          </button>
+        ) : null}
+
+        {qr ? (
+          <div className="mt-4 text-center">
+            <img src={qr} alt="Connection QR" className="mx-auto w-52 rounded-xs border-2 border-[#C59B61] bg-[#E8E4DC] p-2 shadow-2xl" />
+            <p className="mt-1 font-cinzel text-[10px] uppercase tracking-widest text-[#AAA69B]">
+              Scan with Guest Device
+            </p>
+          </div>
+        ) : null}
+
+        {code ? (
+          <div className="mt-3">
+            <textarea
+              readOnly
+              className="h-20 w-full rounded-xs bg-[#171819] border border-[#AAA69B]/30 p-2 text-[10px] text-[#E8E4DC] font-mono"
+              value={code}
+            />
+            <button
+              className={`mt-1.5 w-full py-2.5 font-cinzel text-xs font-bold uppercase tracking-wider border transition cursor-pointer ${
+                copied ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300' : 'df-btn-silver'
+              }`}
+              onClick={() => void copyCode()}
+            >
+              {copied ? '✓ Token Copied to Clipboard!' : 'Copy Connection Token'}
+            </button>
+          </div>
+        ) : null}
+
+        <MetallicDivider className="my-4" />
+
+        <div>
+          <p className="font-cinzel text-xs font-bold uppercase tracking-wider text-[#E8E4DC]">
+            {role === 'host' ? 'Paste Guest Answer Token' : 'Paste or Scan Host Offer Token'}
+          </p>
+          <textarea
+            className="mt-1.5 h-20 w-full rounded-xs bg-[#171819] border border-[#AAA69B]/30 p-2 text-[10px] font-mono text-[#E8E4DC]"
+            placeholder="Paste LL1.... token or tap Scan QR"
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              disabled={applying}
+              className="df-btn-gold px-4 py-2 text-xs font-bold tracking-wider cursor-pointer disabled:opacity-50"
+              onClick={() => void processBundle(paste)}
+            >
+              {applying ? 'Applying…' : 'Apply Token'}
+            </button>
+            <button
+              className="df-btn-silver px-3 py-2 text-xs cursor-pointer"
+              onClick={() => void pasteClipboard()}
+            >
+              Paste Clipboard
+            </button>
+            <button
+              className="df-btn-silver px-3 py-2 text-xs cursor-pointer"
+              onClick={() => setScan((s) => !s)}
+            >
+              {scan ? 'Close Scanner' : '📷 Scan QR'}
+            </button>
+          </div>
         </div>
+
+        {scan ? (
+          <div className="mt-3 overflow-hidden rounded-xs border border-[#C59B61]">
+            <video ref={video} className="h-44 w-full object-cover" playsInline muted />
+            <p className="bg-[#171819] py-1 text-center font-cinzel text-[10px] text-[#C59B61] uppercase tracking-wider">
+              Align camera with opposing screen's QR code
+            </p>
+          </div>
+        ) : null}
+
+        {status === 'connected' ? (
+          <p className="mt-3 font-cinzel text-xs text-emerald-400 font-bold text-center">
+            ✓ DataChannel Open. Entering Expedition Bunker…
+          </p>
+        ) : null}
+
+        {error ? (
+          <p className="mt-3 rounded-xs bg-[#853D3D]/30 border border-[#853D3D] p-2 text-xs text-red-200 font-mono">
+            {error}
+          </p>
+        ) : null}
       </div>
-      {scan ? (
-        <div className="mt-3 overflow-hidden rounded-xl border border-amber/40">
-          <video ref={video} className="h-44 w-full object-cover" playsInline muted />
-          <p className="bg-black/80 py-1 text-center text-xs text-amber">Point camera at the other phone's QR code</p>
-        </div>
-      ) : null}
-      {status === 'connected' ? <p className="mt-3 text-sm text-amber font-semibold">Data channel open. Waiting for lobby handshake…</p> : null}
-      {error ? <p className="mt-3 rounded-lg bg-red/20 p-2 text-sm text-red">{error}</p> : null}
-      <ol className="mt-6 list-decimal space-y-1 pl-5 text-xs text-ivory/60">
-        <li>Open LAST LIGHT on both devices (PWA or same LAN page). Internet is not required after the app is cached.</li>
-        <li>Host creates a session and shows an offer QR / code.</li>
-        <li>Guest scans or pastes the offer, which generates and displays an answer.</li>
-        <li>Host pastes or scans the answer. When the data channel opens, both appear in the lobby.</li>
-      </ol>
     </Shell>
   )
 }

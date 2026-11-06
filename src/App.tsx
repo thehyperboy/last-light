@@ -198,6 +198,24 @@ export default function App() {
           }
           setScreen('menu')
         }}
+        onPlayMulti={() => {
+          audioRef.current.unlock()
+          audioRef.current.play('ui')
+          setScreen('mode')
+        }}
+        onOpenSettings={() => {
+          audioRef.current.unlock()
+          audioRef.current.play('ui')
+          setScreen('settings')
+        }}
+        onOpenGuide={() => {
+          audioRef.current.unlock()
+          audioRef.current.play('ui')
+          setScreen('how')
+        }}
+        onExit={() => {
+          audioRef.current.play('ui')
+        }}
         onPlaySound={() => {
           audioRef.current.unlock()
           audioRef.current.play('ui')

@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { loadProfile, saveProfile, type UserProfile } from '../game/storage'
 
 type Props = {
   onLogin: (callsign: string) => void
+  onPlaySolo?: () => void
+  onPlayMulti?: () => void
+  onOpenSettings?: () => void
+  onOpenGuide?: () => void
+  onExit?: () => void
   onPlaySound?: () => void
 }
 
@@ -15,15 +20,24 @@ const DEFAULT_CALLSIGNS = [
   'Ghost-05',
   'Zero-Six',
   'Apex-3',
+  'Phoenix-12',
+  'Cipher-8',
 ]
 
-export function Login({ onLogin, onPlaySound }: Props) {
+export function Login({
+  onLogin,
+  onPlaySolo,
+  onPlayMulti,
+  onOpenSettings,
+  onOpenGuide,
+  onExit,
+  onPlaySound,
+}: Props) {
   const saved = loadProfile()
   const [callsign, setCallsign] = useState(() => saved?.callsign || `Survivor-${Math.floor(Math.random() * 90 + 10)}`)
-  const [passcode, setPasscode] = useState(() => saved?.passcode || '')
-  const [remember, setRemember] = useState(() => saved?.remember ?? true)
-  const [showPass, setShowPass] = useState(false)
+  const [remember] = useState(() => saved?.remember ?? true)
   const [error, setError] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const handleRollCallsign = () => {
     onPlaySound?.()
@@ -31,192 +45,252 @@ export function Login({ onLogin, onPlaySound }: Props) {
     setCallsign(`${next.split('-')[0]}-${Math.floor(Math.random() * 90 + 10)}`)
   }
 
-  const handleAuth = (isGuest = false) => {
+  const handleStart = (action: 'story' | 'multi' | 'enter') => {
     onPlaySound?.()
     setError(null)
-    const name = isGuest ? `Guest-${Math.floor(Math.random() * 90 + 10)}` : callsign.trim()
+    const name = callsign.trim()
     if (!name) {
       setError('Please enter a survivor callsign')
-      return
-    }
-    if (name.length < 2) {
-      setError('Callsign must be at least 2 characters')
-      return
-    }
-    if (name.length > 20) {
-      setError('Callsign must be 20 characters or less')
       return
     }
 
     const profile: UserProfile = {
       callsign: name,
-      passcode: isGuest ? '' : passcode,
-      clearance: isGuest ? 'GUEST-UNVERIFIED' : 'OPERATOR-LVL3',
-      remember: isGuest ? false : remember,
+      passcode: '',
+      clearance: 'CITADEL-SURVIVOR',
+      remember,
       lastLogin: Date.now(),
     }
 
-    if (remember && !isGuest) {
+    if (remember) {
       saveProfile(profile)
     }
 
-    onLogin(name)
+    if (action === 'story') {
+      if (onPlaySolo) {
+        onLogin(name)
+        onPlaySolo()
+      } else {
+        onLogin(name)
+      }
+    } else if (action === 'multi') {
+      if (onPlayMulti) {
+        onLogin(name)
+        onPlayMulti()
+      } else {
+        onLogin(name)
+      }
+    } else {
+      onLogin(name)
+    }
   }
 
+  // Handle ESC key to exit / reset
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onPlaySound?.()
+        if (onExit) onExit()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onExit, onPlaySound])
+
+  // Canvas atmospheric particle dust & drifting smoke
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    let animId = 0
+    let width = (canvas.width = canvas.offsetWidth)
+    let height = (canvas.height = canvas.offsetHeight)
+
+    const handleResize = () => {
+      if (!canvas) return
+      width = canvas.width = canvas.offsetWidth
+      height = canvas.height = canvas.offsetHeight
+    }
+    window.addEventListener('resize', handleResize)
+
+    // Floating subtle dust motes in room
+    const motes = Array.from({ length: 32 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: -(Math.random() * 0.4 + 0.1),
+      size: Math.random() * 1.8 + 0.6,
+      alpha: Math.random() * 0.4 + 0.1,
+    }))
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height)
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+      for (const m of motes) {
+        m.x += m.vx
+        m.y += m.vy
+        if (m.y < 0) {
+          m.y = height + 10
+          m.x = Math.random() * width
+        }
+        if (m.x < 0) m.x = width
+        if (m.x > width) m.x = 0
+
+        ctx.beginPath()
+        ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255, 255, 255, ${m.alpha})`
+        ctx.fill()
+      }
+
+      animId = requestAnimationFrame(render)
+    }
+
+    animId = requestAnimationFrame(render)
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
   return (
-    <div className="relative min-h-dvh w-full overflow-hidden bg-[#0f1923] text-[#ece8e1] select-none font-sans">
-      {/* Background Graphic */}
+    <div className="relative h-dvh w-full overflow-hidden bg-[#111214] text-white select-none">
+      {/* 4K Photorealistic Studio Room Background (Reference Image 1) */}
       <img
-        src="/valorant-bg.jpg"
-        alt="Facility interior"
-        className="absolute inset-0 h-full w-full object-cover object-center brightness-60 contrast-105 filter"
+        src="/room-menu-bg.jpg"
+        alt="Studio Room Background"
+        className="absolute inset-0 h-full w-full object-cover object-center brightness-90 contrast-105"
       />
 
-      {/* Atmospheric Overlays */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0f1923] via-[#0f1923]/70 to-[#0f1923]/85" />
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#ff4655]/15 blur-3xl" />
+      {/* Atmospheric Smoke Vignette Mask - Heavy billowing organic darkness on left 40% */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0d0e10] via-[#0d0e10]/95 via-35% to-transparent to-65%" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-full sm:w-[45vw] bg-radial-[circle_at_left_center,rgba(13,14,16,0.98)_0%,rgba(13,14,16,0.85)_60%,transparent_100%]" />
+      <div className="pointer-events-none absolute inset-0 bg-radial-[circle_at_top_right,rgba(255,60,90,0.1)_0%,transparent_50%]" />
 
-      {/* Main Container */}
-      <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-4 py-8">
-        {/* Header Branding */}
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded bg-[#ff4655] px-3.5 py-0.5 text-[10px] font-black uppercase tracking-[0.3em] text-white val-cut-btn mb-2 shadow-lg shadow-[#ff4655]/30">
-            SECURITY CLEARANCE // SECTOR-04
-          </div>
-          <h1 className="val-logo mt-1 text-5xl font-black tracking-[0.24em] text-white sm:text-6xl md:text-7xl drop-shadow-2xl">
-            LAST LIGHT
-          </h1>
-          <p className="mt-1 text-xs tracking-[0.3em] text-[#00f0ff] font-mono uppercase">
-            OPERATOR AUTHENTICATION TERMINAL
-          </p>
-        </div>
+      {/* Subtle Dust & Ambient Particle Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+      />
 
-        {/* Login Panel (Valorant Glass Box with Cut Corners) */}
-        <div className="val-panel val-cut-tr mt-7 w-full max-w-md p-6 shadow-2xl sm:p-8 relative">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 text-[10px] uppercase tracking-widest text-white/50 font-mono">
-            <span>Terminal: #VAL-SEC-04</span>
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              Direct P2P Ready
-            </span>
+      {/* ======================= LEFT MENU CONTAINER ======================= */}
+      <div className="relative z-20 flex h-full w-full sm:w-[50vw] md:w-[42vw] flex-col justify-center px-8 sm:px-14 md:px-20 py-12">
+        <div className="max-w-md">
+          {/* LOGO: Weathered Distressed Stencil Heading */}
+          <div className="mb-8 sm:mb-12">
+            <h1 className="grunge-title text-5xl sm:text-6xl md:text-7xl font-black tracking-[0.14em] drop-shadow-2xl">
+              LAST LIGHT
+            </h1>
+            <p className="mt-2 text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-white/50">
+              OFFLINE SURVIVAL PROTOCOL // 4-12 PLAYERS
+            </p>
           </div>
 
-          <form
-            className="mt-6 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleAuth(false)
-            }}
-          >
-            {/* Callsign Input */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="callsign-input" className="text-xs font-bold uppercase tracking-wider text-white">
-                  Survivor Callsign
-                </label>
-                <button
-                  type="button"
-                  onClick={handleRollCallsign}
-                  className="text-[10px] font-mono uppercase tracking-wider text-[#00f0ff] hover:underline cursor-pointer"
-                >
-                  [Roll Random]
-                </button>
-              </div>
-              <div className="relative mt-1.5">
-                <input
-                  id="callsign-input"
-                  type="text"
-                  autoComplete="username"
-                  maxLength={20}
-                  className="w-full rounded-sm border border-white/15 bg-[#172430]/90 px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/30 focus:border-[#ff4655] focus:outline-none val-cut-btn"
-                  placeholder="e.g. Survivor-42"
-                  value={callsign}
-                  onChange={(e) => setCallsign(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Passcode Input (Optional for offline) */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="passcode-input" className="text-xs font-bold uppercase tracking-wider text-white">
-                  Clearance Passcode <span className="text-[10px] font-normal text-white/40">(Optional)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowPass((s) => !s)}
-                  className="text-[10px] uppercase tracking-wider text-white/50 hover:text-white cursor-pointer"
-                >
-                  {showPass ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              <div className="relative mt-1.5">
-                <input
-                  id="passcode-input"
-                  type={showPass ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  className="w-full rounded-sm border border-white/15 bg-[#172430]/90 px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/30 focus:border-[#ff4655] focus:outline-none val-cut-btn"
-                  placeholder="•••••••• (or leave blank)"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                />
-              </div>
-              <p className="mt-1 text-[10px] text-white/40 font-mono">
-                Encrypted locally. Zero remote cloud dependency.
-              </p>
-            </div>
-
-            {/* Remember Me */}
-            <div className="flex items-center justify-between pt-1 text-xs text-white/70">
-              <label className="flex cursor-pointer select-none items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="h-4 w-4 rounded-sm border-white/30 bg-black/50 accent-[#ff4655]"
-                />
-                <span className="text-xs font-mono uppercase">Remember this device</span>
-              </label>
-              {saved ? (
-                <span className="text-[10px] text-emerald-400 font-mono">
-                  Saved: {saved.callsign}
-                </span>
-              ) : null}
-            </div>
-
-            {/* Error Message */}
-            {error ? (
-              <div className="rounded-sm bg-red-900/40 border border-red-500/50 p-2 text-xs text-red-200 font-mono">
-                {error}
-              </div>
-            ) : null}
-
-            {/* Action Buttons */}
-            <div className="pt-2 space-y-2.5">
-              <button
-                type="submit"
-                className="val-cut-btn w-full bg-[#ff4655] py-3.5 text-center text-sm font-black uppercase tracking-[0.24em] text-white shadow-lg shadow-[#ff4655]/40 transition hover:bg-[#ff5865] active:scale-[0.99] cursor-pointer"
-              >
-                Access Terminal
-              </button>
-
+          {/* SURVIVOR CALLSIGN PROFILE CHIP (Quick name changer) */}
+          <div className="mb-6 rounded-sm border border-white/10 bg-black/40 p-3 backdrop-blur-md">
+            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1">
+              <span>OPERATOR CALLSIGN</span>
               <button
                 type="button"
-                onClick={() => handleAuth(true)}
-                className="val-cut-btn w-full border border-white/20 bg-[#172430]/80 py-2.5 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#ece8e1]/80 transition hover:bg-[#172430] hover:text-white cursor-pointer"
+                onClick={handleRollCallsign}
+                className="text-[#00f0ff] hover:underline cursor-pointer"
               >
-                Quick Deploy as Guest
+                🎲 Random
               </button>
             </div>
-          </form>
 
-          {/* Security Telemetry Footer */}
-          <div className="mt-6 border-t border-white/10 pt-4 text-center text-[10px] uppercase tracking-widest text-white/40 font-mono">
-            <span>VALORANT ENGINE UI</span> · <span>STANDALONE CLIENT</span> · <span>100% OFFLINE</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={callsign}
+                onChange={(e) => setCallsign(e.target.value)}
+                maxLength={20}
+                placeholder="Enter survivor name..."
+                className="w-full bg-transparent font-bold tracking-wider text-sm sm:text-base text-white placeholder-white/30 focus:outline-none"
+              />
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            </div>
+
+            {error ? (
+              <div className="mt-1 text-[11px] text-red-400 font-mono">{error}</div>
+            ) : null}
           </div>
+
+          {/* VERTICAL MENU OPTIONS (Exact layout from Reference Image 1) */}
+          <nav className="flex flex-col items-start gap-4 sm:gap-5">
+            {/* 1. PLAY STORY (Iconic Distressed White Chalk / Brush-Stroke Pill) */}
+            <button
+              type="button"
+              onClick={() => handleStart('story')}
+              className="chalk-pill text-xs sm:text-sm md:text-base tracking-[0.22em] cursor-pointer group"
+              title="Start Solo Story Campaign"
+            >
+              <span className="relative z-10 font-black">PLAY STORY</span>
+            </button>
+
+            {/* 2. MULTIPLAYER */}
+            <button
+              type="button"
+              onClick={() => handleStart('multi')}
+              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
+              title="Local Network / Offline WebRTC Multiplayer"
+            >
+              MULTIPLAYER
+            </button>
+
+            {/* 3. HELP & GUIDE */}
+            <button
+              type="button"
+              onClick={() => {
+                onPlaySound?.()
+                if (onOpenGuide) onOpenGuide()
+                else onLogin(callsign)
+              }}
+              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
+              title="Survival Guide and Controls"
+            >
+              HELP & GUIDE
+            </button>
+
+            {/* 4. SETTINGS */}
+            <button
+              type="button"
+              onClick={() => {
+                onPlaySound?.()
+                if (onOpenSettings) onOpenSettings()
+                else onLogin(callsign)
+              }}
+              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
+              title="Audio, Graphics, and Display Settings"
+            >
+              SETTINGS
+            </button>
+
+            {/* 5. EXIT */}
+            <button
+              type="button"
+              onClick={() => {
+                onPlaySound?.()
+                if (onExit) onExit()
+              }}
+              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer text-white/50 hover:text-red-400"
+              title="Exit / Reset Session"
+            >
+              EXIT
+            </button>
+          </nav>
         </div>
+      </div>
+
+      {/* ================= BOTTOM RIGHT KEYBOARD PROMPT ================= */}
+      <div className="absolute bottom-6 right-8 z-20 hidden sm:flex items-center gap-2 font-mono text-xs tracking-widest text-white/40">
+        <kbd className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/70 shadow-sm">
+          ESC
+        </kbd>
+        <span>EXIT</span>
       </div>
     </div>
   )
 }
-

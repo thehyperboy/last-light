@@ -395,9 +395,11 @@ export function ValorantMenu({
                 </div>
 
                 {/* Subtitle Lore Callout */}
-                <p className="mt-2 text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-[#00f0ff] drop-shadow">
-                  SURVIVE TOGETHER · ESCAPE BEFORE DARK
-                </p>
+                <div className="mt-2 inline-block rounded-xs bg-black/60 px-3 py-0.5 border border-white/10 backdrop-blur-xs">
+                  <p className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#00f0ff] drop-shadow-sm">
+                    SURVIVE TOGETHER · ESCAPE BEFORE DARK
+                  </p>
+                </div>
               </div>
 
               {/* Mobile / Tablet Mode Selector Bar (Shown when < lg) */}
