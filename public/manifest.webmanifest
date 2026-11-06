@@ -1,0 +1,13 @@
+{
+  "name": "LAST LIGHT",
+  "short_name": "LAST LIGHT",
+  "description": "Survive together. Escape before dark.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121613",
+  "theme_color": "#121613",
+  "orientation": "any",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
