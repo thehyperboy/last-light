@@ -265,3 +265,4 @@ export function InventoryModal({
     </div>
   )
 }
+

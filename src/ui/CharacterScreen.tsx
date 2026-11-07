@@ -200,3 +200,4 @@ export function CharacterScreen({ selectedId, onSelect, onBack, onPlaySound }: P
     </div>
   )
 }
+

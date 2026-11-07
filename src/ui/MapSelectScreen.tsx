@@ -230,3 +230,4 @@ export function MapSelectScreen({ onSelectMap, onBack, onPlaySound }: Props) {
     </div>
   )
 }
+
