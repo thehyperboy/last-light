@@ -52,14 +52,18 @@ export function ValorantPortalFx() {
 
     const { cx: initCx, cy: initCy } = getPortalCenter()
 
-    // Particles: floating embers and radiant energy motes
+    // Particles: floating embers — orange/red/deep-red palette
     const particles = Array.from({ length: 48 }, () => ({
       x: initCx + (Math.random() - 0.5) * 120,
       y: initCy + (Math.random() - 0.2) * 50,
       vx: (Math.random() - 0.5) * 0.7,
       vy: -(Math.random() * 1.5 + 0.6),
       size: Math.random() * 3.2 + 1.2,
-      color: Math.random() > 0.35 ? 'rgba(255, 150, 40, ' : 'rgba(255, 70, 85, ',
+      color: Math.random() > 0.5
+        ? 'rgba(255, 106, 0, '     // bright orange
+        : Math.random() > 0.4
+        ? 'rgba(232, 93, 4, '      // deep orange
+        : 'rgba(196, 30, 30, ',    // crimson red
       alpha: Math.random() * 0.85 + 0.15,
       decay: Math.random() * 0.007 + 0.003,
     }))
@@ -76,16 +80,16 @@ export function ValorantPortalFx() {
 
         const { cx, cy, scale } = getPortalCenter()
 
-        // 1. Radiant portal core pulsating glow
+        // 1. Radiant portal core pulsating glow — orange → red → black fade
         const pulse = Math.sin(time * 2.2) * 0.1 + 1
         const r1 = Math.max(1, 12 * scale)
         const r2 = Math.max(1, 85 * scale * pulse)
 
         const grad = ctx.createRadialGradient(cx, cy, r1, cx, cy, r2)
-        grad.addColorStop(0, 'rgba(255, 245, 180, 0.85)')
-        grad.addColorStop(0.35, 'rgba(255, 140, 45, 0.65)')
-        grad.addColorStop(0.7, 'rgba(255, 60, 75, 0.35)')
-        grad.addColorStop(1, 'rgba(255, 70, 85, 0)')
+        grad.addColorStop(0, 'rgba(255, 220, 140, 0.85)')
+        grad.addColorStop(0.3, 'rgba(255, 106, 0, 0.7)')
+        grad.addColorStop(0.6, 'rgba(196, 30, 30, 0.4)')
+        grad.addColorStop(1, 'rgba(60, 10, 0, 0)')
 
         ctx.save()
         ctx.globalCompositeOperation = 'screen'
@@ -103,7 +107,7 @@ export function ValorantPortalFx() {
         ctx.fill()
         ctx.restore()
 
-        // 2. Swirling portal ring energy rays
+        // 2. Swirling portal ring energy rays — ember orange
         ctx.save()
         ctx.globalCompositeOperation = 'lighter'
         for (let i = 0; i < 4; i++) {
@@ -116,9 +120,10 @@ export function ValorantPortalFx() {
             cy,
             Math.max(1, 70 * scale * pulse),
           )
-          rayGrad.addColorStop(0, 'rgba(255, 230, 160, 0.45)')
-          rayGrad.addColorStop(0.6, 'rgba(255, 110, 40, 0.25)')
-          rayGrad.addColorStop(1, 'rgba(255, 80, 50, 0)')
+          rayGrad.addColorStop(0, 'rgba(255, 200, 100, 0.5)')
+          rayGrad.addColorStop(0.5, 'rgba(255, 106, 0, 0.3)')
+          rayGrad.addColorStop(0.8, 'rgba(196, 30, 30, 0.15)')
+          rayGrad.addColorStop(1, 'rgba(60, 10, 0, 0)')
           ctx.fillStyle = rayGrad
           ctx.beginPath()
           ctx.ellipse(
@@ -179,4 +184,3 @@ export function ValorantPortalFx() {
     />
   )
 }
-

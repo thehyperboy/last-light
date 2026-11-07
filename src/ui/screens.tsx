@@ -1,56 +1,43 @@
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { GameState, Settings } from '../game/types'
 import type { SessionInfo } from '../net/session'
-import { CornerFlourish, Insignia, MetallicDivider } from './FantasyIcons'
 
-export function Shell({
-  children,
-  dim,
-  bg = '/cinematic-bg.jpg',
-}: {
-  children: ReactNode
-  dim?: boolean
-  bg?: string
-}) {
+export function Shell({ children, dim }: { children: ReactNode; dim?: boolean }) {
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[#171819] text-[#E8E4DC] select-none font-sans">
-      {/* 4K Cinematic Atmosphere Background */}
+    <div className="relative min-h-dvh overflow-hidden bg-[#0a0a0a] text-[#f0e6d8]">
+      {/* Atmospheric Background */}
       <img
-        src={bg}
-        alt="Atmospheric Backdrop"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center brightness-45 contrast-110 filter"
+        src="/valorant-bg.jpg"
+        alt="Valorant Floating Island"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center brightness-40 contrast-110 saturate-75 filter"
       />
-      <div className="pointer-events-none absolute inset-0 bg-radial-[circle_at_center,transparent_30%,rgba(23,24,25,0.85)_100%]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#171819] via-[#171819]/70 to-[#171819]/85" />
-
-      <div
-        className={`relative z-10 flex min-h-dvh flex-col px-4 sm:px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.2rem,env(safe-area-inset-top))] ${
-          dim ? 'bg-[#171819]/60 backdrop-blur-md' : ''
-        }`}
-      >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/95 via-[#0a0a0a]/80 to-[#0a0a0a]/65" />
+      <div className={`relative z-10 flex min-h-dvh flex-col px-5 pb-[max(1.2rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] ${dim ? 'bg-[#0a0a0a]/60 backdrop-blur-md' : ''}`}>
         {children}
       </div>
     </div>
   )
 }
 
-export function Back({ onBack, label = '← RETURN TO CITADEL' }: { onBack: () => void; label?: string }) {
+export function Logo() {
   return (
-    <button
-      onClick={onBack}
-      className="df-btn-silver self-start px-3.5 py-1.5 text-xs font-cinzel font-bold tracking-[0.2em] cursor-pointer"
-    >
-      {label}
-    </button>
+    <div>
+      <h1 className="distressed-logo text-5xl font-black tracking-[0.16em] text-white sm:text-6xl md:text-7xl">
+        LAST LIGHT
+      </h1>
+      <p className="mt-1 text-[11px] font-mono tracking-[0.35em] text-[#ff6a00]/70 uppercase">
+        SURVIVE TOGETHER · ESCAPE BEFORE DARK
+      </p>
+    </div>
   )
 }
 
 export function MenuButton({
   label,
   onClick,
-  primary = false,
+  primary,
   note,
-  disabled = false,
+  disabled,
 }: {
   label: string
   onClick: () => void
@@ -60,17 +47,164 @@ export function MenuButton({
 }) {
   return (
     <button
-      onClick={onClick}
       disabled={disabled}
-      className={`w-full text-left py-3 px-4 rounded-xs transition cursor-pointer ${
-        primary
-          ? 'df-btn-gold text-center font-cinzel font-bold text-xs tracking-[0.2em]'
-          : 'df-btn-silver font-cinzel text-xs tracking-wider'
-      } ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+      onClick={onClick}
+      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${primary ? 'border-[#e85d04] bg-gradient-to-r from-[#c41e1e] to-[#e85d04] text-white' : 'border-[#ff6a00]/15 bg-black/50 text-ivory hover:border-[#ff6a00]/40'} disabled:opacity-40`}
     >
-      <div>{label}</div>
-      {note ? <div className="text-[10px] text-white/50 font-mono tracking-normal mt-0.5">{note}</div> : null}
+      <div className="text-sm font-semibold tracking-wide">{label}</div>
+      {note ? <div className="mt-1 text-[11px] opacity-70">{note}</div> : null}
     </button>
+  )
+}
+
+export function MainMenu({
+  callsign,
+  onPlayStory,
+  onMultiplayer,
+  onHelpGuide,
+  onSettings,
+  onExit,
+  onPlay,
+  onSolo,
+  onMulti,
+  onHow,
+}: {
+  online?: boolean
+  callsign?: string
+  onPlay?: () => void
+  onSolo?: () => void
+  onMulti?: () => void
+  onPass?: () => void
+  onHow?: () => void
+  onSettings: () => void
+  onCredits?: () => void
+  onPlayStory?: () => void
+  onMultiplayer?: () => void
+  onHelpGuide?: () => void
+  onExit?: () => void
+}) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const menuItems = [
+    { label: 'PLAY STORY', action: onPlayStory ?? onSolo ?? onPlay },
+    { label: 'MULTIPLAYER', action: onMultiplayer ?? onMulti },
+    { label: 'HELP & GUIDE', action: onHelpGuide ?? onHow },
+    { label: 'SETTINGS', action: onSettings },
+    { label: 'EXIT', action: onExit ?? onSolo },
+  ]
+
+  const activeIndex = hoverIndex !== null ? hoverIndex : selectedIndex
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : menuItems.length - 1))
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev < menuItems.length - 1 ? prev + 1 : 0))
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        menuItems[activeIndex]?.action?.()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        onExit?.()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeIndex, menuItems, onExit])
+
+  return (
+    <div className="relative min-h-dvh w-full overflow-hidden bg-[#0a0a0a] text-ivory select-none">
+      {/* Fullscreen Atmospheric Background Graphic */}
+      <img
+        src="/menu-bg.jpg"
+        alt="Facility corridor"
+        className="absolute inset-0 h-full w-full object-cover object-center brightness-50 contrast-110 saturate-75 filter"
+      />
+
+      {/* SVG filter for rough grunge stencil logo */}
+      <svg className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+        <filter id="grunge-filter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="3" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+
+      {/* Left Smoky / Ink Shadow Vignette Overlay */}
+      <div className="left-smoke-overlay pointer-events-none absolute inset-y-0 left-0 w-full sm:w-[55%] md:w-[48%] lg:w-[42%]" />
+
+      {/* Subtle top/bottom edge gradients */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/90 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/95 to-transparent" />
+
+      {/* Main Content Area */}
+      <div className="relative z-10 flex min-h-dvh flex-col justify-between px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.8rem,env(safe-area-inset-top))] sm:px-12 md:px-16">
+        {/* Top Bar Indicator */}
+        <div className="flex items-center gap-3 text-[11px] font-mono tracking-widest text-ivory/50 uppercase">
+          <span className="inline-block h-2 w-2 rounded-full bg-[#ff6a00] animate-pulse" />
+          <span>Sector-04 Offline Facility</span>
+          {callsign ? <span className="text-[#ff6a00]/90">· Operator: {callsign}</span> : null}
+        </div>
+
+        {/* Center-Left Brand & Menu */}
+        <div className="my-auto max-w-lg py-8">
+          {/* Weathered Stencil Title */}
+          <div className="mb-7">
+            <h1 className="distressed-logo text-5xl font-black tracking-[0.16em] text-white sm:text-6xl md:text-7xl">
+              LAST LIGHT
+            </h1>
+          </div>
+
+          {/* Vertical Menu Buttons */}
+          <nav className="flex flex-col items-start gap-4" aria-label="Main menu">
+            {menuItems.map((item, idx) => {
+              const isPill = activeIndex === idx
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setSelectedIndex(idx)
+                    item.action?.()
+                  }}
+                  onMouseEnter={() => setHoverIndex(idx)}
+                  onMouseLeave={() => setHoverIndex(null)}
+                  className="group relative flex cursor-pointer items-center text-left transition-all duration-150 focus:outline-none"
+                >
+                  {isPill ? (
+                    <span className="torn-paper-pill text-base sm:text-lg">
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 text-base sm:text-lg font-bold tracking-[0.2em] text-ivory/85 transition-colors duration-150 group-hover:text-white">
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="flex items-center justify-between text-xs font-mono tracking-widest text-ivory/50">
+          <div className="text-[11px] uppercase tracking-wider text-ivory/40">
+            Survival Engine v1.0 · P2P LAN Mode
+          </div>
+          <button
+            type="button"
+            onClick={onExit}
+            className="flex items-center gap-2 hover:text-[#ff6a00] transition font-mono cursor-pointer"
+          >
+            <span>[ESC]</span>
+            <span>EXIT</span>
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -78,63 +212,14 @@ export function HowToPlay({ onBack }: { onBack: () => void }) {
   return (
     <Shell>
       <Back onBack={onBack} />
-      <div className="df-panel mx-auto mt-6 w-full max-w-2xl p-6 sm:p-8 relative">
-        <CornerFlourish position="top-left" color="#C59B61" size={20} />
-        <CornerFlourish position="top-right" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-left" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-right" color="#C59B61" size={20} />
-
-        <div className="flex items-center gap-3">
-          <Insignia className="h-8 w-8" />
-          <h2 className="font-cinzel text-2xl sm:text-3xl font-black tracking-widest text-[#E8E4DC]">
-            SURVIVAL MANUAL
-          </h2>
-        </div>
-
-        <MetallicDivider label="CORE EXPEDITION DIRECTIVES" className="my-4" />
-
-        <div className="space-y-4 text-xs sm:text-sm text-[#E8E4DC]/90 leading-relaxed font-sans">
-          <div className="flex items-start gap-3 p-3 rounded-xs border border-[#AAA69B]/15 bg-[#171819]/60">
-            <span className="font-cinzel font-bold text-[#C59B61] text-sm">01.</span>
-            <div>
-              <span className="font-cinzel font-bold text-[#E8E4DC] block mb-0.5">TERRAIN TRAVERSAL</span>
-              Left thumb stick commands movement. Swipe the right half of the display to orbit your perspective. Jump, sprint, crouch, and interact buttons flank the right thumb zone.
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xs border border-[#AAA69B]/15 bg-[#171819]/60">
-            <span className="font-cinzel font-bold text-[#C59B61] text-sm">02.</span>
-            <div>
-              <span className="font-cinzel font-bold text-[#E8E4DC] block mb-0.5">TECH SALVAGE & CRAFTING</span>
-              Scour the clearing and facility perimeter for Alloy Salvage, Circuit Harnesses, Batteries, and Nano-Meds. Combine salvage at the bunker workbench to forge emergency Repair Kits.
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xs border border-[#AAA69B]/15 bg-[#171819]/60">
-            <span className="font-cinzel font-bold text-[#C59B61] text-sm">03.</span>
-            <div>
-              <span className="font-cinzel font-bold text-[#E8E4DC] block mb-0.5">GRID OVERHAUL & EVACUATION BEACON</span>
-              Repair the maintenance bunker generator with a calibrated kit, ignite the cliffside beacon on the ridge, and defend the rescue zone until air extraction arrives.
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xs border border-[#AAA69B]/15 bg-[#171819]/60">
-            <span className="font-cinzel font-bold text-[#C59B61] text-sm">04.</span>
-            <div>
-              <span className="font-cinzel font-bold text-[#E8E4DC] block mb-0.5">BIOLOGICAL STALKERS</span>
-              Stalkers respond to sprint footfalls and optical line of sight. They cannot breach reinforced bunker walls. Break line-of-sight and sprint into shelters.
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 rounded-xs border border-[#AAA69B]/15 bg-[#171819]/60">
-            <span className="font-cinzel font-bold text-[#C59B61] text-sm">05.</span>
-            <div>
-              <span className="font-cinzel font-bold text-[#E8E4DC] block mb-0.5">LOCAL P2P MULTIPLAYER</span>
-              Two devices on the same Wi-Fi/hotspot establish a direct WebRTC data connection via QR scanning or clipboard tokens—no remote game server required.
-            </div>
-          </div>
-        </div>
-      </div>
+      <h2 className="mt-4 font-display text-3xl">How to Play</h2>
+      <ul className="mt-4 max-w-lg space-y-3 text-sm text-ivory/80">
+        <li>Move with the left stick. Drag the right side to look. Jump, sprint, and interact on the right.</li>
+        <li>Collect metal, batteries, meds, and repair components. Craft a repair kit at the bunker.</li>
+        <li>Repair the generator, restore the beacon, then hold the extraction zone until rescue.</li>
+        <li>Creatures cannot attack through buildings. Break line of sight and run.</li>
+        <li>Local multiplayer uses a QR / copy-paste WebRTC handshake. A room code alone does not connect devices.</li>
+      </ul>
     </Shell>
   )
 }
@@ -143,35 +228,10 @@ export function Credits({ onBack }: { onBack: () => void }) {
   return (
     <Shell>
       <Back onBack={onBack} />
-      <div className="df-panel mx-auto mt-8 w-full max-w-xl p-8 relative text-center">
-        <CornerFlourish position="top-left" color="#C59B61" size={24} />
-        <CornerFlourish position="top-right" color="#C59B61" size={24} />
-        <CornerFlourish position="bottom-left" color="#C59B61" size={24} />
-        <CornerFlourish position="bottom-right" color="#C59B61" size={24} />
-
-        <Insignia className="h-16 w-16 mx-auto mb-4" spin />
-        <h2 className="font-cinzel text-3xl font-black tracking-widest text-[#E8E4DC]">
-          LAST LIGHT
-        </h2>
-        <p className="font-editorial text-sm italic text-[#C59B61] mt-1">
-          Survive Together. Escape Before Dark.
-        </p>
-
-        <MetallicDivider className="my-5" />
-
-        <div className="space-y-3 text-xs text-[#AAA69B] leading-relaxed font-sans">
-          <p>
-            LAST LIGHT is an original offline-first cinematic 3D survival game engineered with React Three Fiber, WebGL, Web Audio API, and host-authoritative WebRTC data architecture.
-          </p>
-          <p>
-            Environment geometry, weather shaders, audio synthesis, and finite-state machine AI operate 100% locally on the device without mandatory cloud dependency.
-          </p>
-        </div>
-
-        <div className="mt-8 pt-4 border-t border-[#AAA69B]/20 text-[10px] font-cinzel text-[#AAA69B]/60 uppercase tracking-[0.25em]">
-          RESEARCH SECTOR 04 // PROTOCOL v2.0
-        </div>
-      </div>
+      <h2 className="mt-4 font-display text-3xl">Credits</h2>
+      <p className="mt-4 max-w-lg text-sm text-ivory/75">
+        LAST LIGHT is an original offline-first prototype. Environment geometry is procedural. Audio is synthesized locally with the Web Audio API. No cloud accounts and no remote game server are required for solo play.
+      </p>
     </Shell>
   )
 }
@@ -188,113 +248,41 @@ export function SettingsScreen({
   return (
     <Shell>
       <Back onBack={onBack} />
-      <div className="df-panel mx-auto mt-6 w-full max-w-xl p-6 sm:p-8 relative">
-        <CornerFlourish position="top-left" color="#C59B61" size={20} />
-        <CornerFlourish position="top-right" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-left" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-right" color="#C59B61" size={20} />
-
-        <h2 className="font-cinzel text-2xl sm:text-3xl font-black tracking-widest text-[#E8E4DC]">
-          CITADEL SETTINGS
-        </h2>
-        <p className="font-cinzel text-[10px] tracking-[0.28em] text-[#C59B61] uppercase mt-0.5">
-          HARDWARE & CONTROL CONFIGURATION
-        </p>
-
-        <MetallicDivider className="my-4" />
-
-        <div className="space-y-4 text-xs font-sans">
-          {/* Sensitivity */}
-          <div>
-            <div className="flex justify-between font-cinzel text-[11px] uppercase tracking-wider text-[#E8E4DC] mb-1">
-              <span>Camera Sensitivity</span>
-              <span className="font-mono text-[#C59B61]">{settings.sensitivity.toFixed(1)}x</span>
-            </div>
-            <input
-              className="w-full accent-[#C59B61]"
-              type="range"
-              min={0.4}
-              max={2}
-              step={0.1}
-              value={settings.sensitivity}
-              onChange={(e) => setSettings({ ...settings, sensitivity: Number(e.target.value) })}
-            />
-          </div>
-
-          {/* Sound FX */}
-          <div>
-            <div className="flex justify-between font-cinzel text-[11px] uppercase tracking-wider text-[#E8E4DC] mb-1">
-              <span>Sound Effects</span>
-              <span className="font-mono text-[#C59B61]">{Math.round(settings.sfx * 100)}%</span>
-            </div>
-            <input
-              className="w-full accent-[#C59B61]"
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={settings.sfx}
-              onChange={(e) => setSettings({ ...settings, sfx: Number(e.target.value) })}
-            />
-          </div>
-
-          {/* Ambience */}
-          <div>
-            <div className="flex justify-between font-cinzel text-[11px] uppercase tracking-wider text-[#E8E4DC] mb-1">
-              <span>Atmospheric Ambience</span>
-              <span className="font-mono text-[#C59B61]">{Math.round(settings.ambience * 100)}%</span>
-            </div>
-            <input
-              className="w-full accent-[#C59B61]"
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={settings.ambience}
-              onChange={(e) => setSettings({ ...settings, ambience: Number(e.target.value) })}
-            />
-          </div>
-
-          {/* Graphics Quality */}
-          <div>
-            <span className="font-cinzel text-[11px] uppercase tracking-wider text-[#E8E4DC] block mb-2">
-              Visual Fidelity
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              {(['low', 'medium', 'high'] as const).map((q) => (
-                <button
-                  key={q}
-                  onClick={() => setSettings({ ...settings, quality: q })}
-                  className={`py-2 text-center font-cinzel text-[11px] font-bold uppercase tracking-wider border transition ${
-                    settings.quality === q
-                      ? 'border-[#C59B61] bg-[#C59B61]/25 text-white shadow-[0_0_12px_rgba(197,155,97,0.3)]'
-                      : 'border-[#AAA69B]/20 bg-[#171819]/60 text-[#AAA69B]'
-                  }`}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <MetallicDivider className="my-3" />
-
-          {/* Toggles */}
-          <div className="space-y-3">
-            <Row label="Left-Handed Touch Layout">
-              <Toggle on={settings.leftHanded} set={(v) => setSettings({ ...settings, leftHanded: v })} />
-            </Row>
-            <Row label="Tactile Haptic Feedback">
-              <Toggle on={settings.vibration} set={(v) => setSettings({ ...settings, vibration: v })} />
-            </Row>
-            <Row label="Telemetry FPS Counter">
-              <Toggle on={settings.showFps} set={(v) => setSettings({ ...settings, showFps: v })} />
-            </Row>
-            <Row label="STUN Assist (Internet only)">
-              <Toggle on={settings.useStun} set={(v) => setSettings({ ...settings, useStun: v })} />
-            </Row>
+      <h2 className="mt-4 font-display text-3xl">Settings</h2>
+      <div className="mt-5 max-w-lg space-y-4 text-sm">
+        <label className="block">Camera sensitivity {settings.sensitivity.toFixed(1)}
+          <input className="mt-2 w-full accent-[#ff6a00]" type="range" min={0.4} max={2} step={0.1} value={settings.sensitivity} onChange={(e) => setSettings({ ...settings, sensitivity: Number(e.target.value) })} />
+        </label>
+        <label className="block">Field of view {settings.fov}
+          <input className="mt-2 w-full accent-[#ff6a00]" type="range" min={50} max={75} value={settings.fov} onChange={(e) => setSettings({ ...settings, fov: Number(e.target.value) })} />
+        </label>
+        <label className="block">Effects {Math.round(settings.sfx * 100)}%
+          <input className="mt-2 w-full accent-[#ff6a00]" type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={(e) => setSettings({ ...settings, sfx: Number(e.target.value) })} />
+        </label>
+        <label className="block">Ambience {Math.round(settings.ambience * 100)}%
+          <input className="mt-2 w-full accent-[#ff6a00]" type="range" min={0} max={1} step={0.05} value={settings.ambience} onChange={(e) => setSettings({ ...settings, ambience: Number(e.target.value) })} />
+        </label>
+        <Row label="Left-handed controls">
+          <Toggle on={settings.leftHanded} set={(v) => setSettings({ ...settings, leftHanded: v })} />
+        </Row>
+        <Row label="Vibration">
+          <Toggle on={settings.vibration} set={(v) => setSettings({ ...settings, vibration: v })} />
+        </Row>
+        <Row label="Show FPS">
+          <Toggle on={settings.showFps} set={(v) => setSettings({ ...settings, showFps: v })} />
+        </Row>
+        <div>
+          <p className="mb-2">Graphics</p>
+          <div className="flex gap-2">
+            {(['low', 'medium', 'high'] as const).map((q) => (
+              <button key={q} className={`rounded-xl border px-3 py-2 capitalize ${settings.quality === q ? 'border-[#ff6a00] text-[#ff6a00] shadow-[0_0_8px_rgba(255,106,0,0.3)]' : 'border-ivory/20'}`} onClick={() => setSettings({ ...settings, quality: q })}>{q}</button>
+            ))}
           </div>
         </div>
+        <Row label="STUN assist (pairing only, needs internet)">
+          <Toggle on={settings.useStun} set={(v) => setSettings({ ...settings, useStun: v })} />
+        </Row>
+        <p className="text-xs text-ivory/50">STUN is off by default so pairing can stay on the LAN. Enable it only if host ICE candidates fail.</p>
       </div>
     </Shell>
   )
@@ -302,7 +290,7 @@ export function SettingsScreen({
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between font-cinzel text-xs text-[#E8E4DC]">
+    <div className="flex items-center justify-between gap-4">
       <span>{label}</span>
       {children}
     </div>
@@ -311,18 +299,15 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 function Toggle({ on, set }: { on: boolean; set: (v: boolean) => void }) {
   return (
-    <button
-      className={`h-6 w-11 rounded-full border transition cursor-pointer ${
-        on ? 'border-[#C59B61] bg-[#C59B61]/40' : 'border-[#AAA69B]/30 bg-[#171819]'
-      }`}
-      onClick={() => set(!on)}
-    >
-      <span
-        className={`block h-4 w-4 rounded-full transition transform ${
-          on ? 'translate-x-5 bg-[#C59B61]' : 'translate-x-1 bg-[#AAA69B]'
-        }`}
-      />
+    <button className={`h-7 w-12 rounded-full ${on ? 'bg-gradient-to-r from-[#c41e1e] to-[#e85d04]' : 'bg-ivory/20'}`} onClick={() => set(!on)}>
+      <span className={`block h-6 w-6 rounded-full bg-charcoal transition ${on ? 'translate-x-5' : 'translate-x-1'}`} />
     </button>
+  )
+}
+
+function Back({ onBack }: { onBack: () => void }) {
+  return (
+    <button className="text-xs tracking-[0.2em] text-[#ff6a00]" onClick={onBack}>← BACK</button>
   )
 }
 
@@ -342,90 +327,13 @@ export function ModeSelect({
   return (
     <Shell>
       <Back onBack={onBack} />
-      <div className="df-panel mx-auto mt-6 w-full max-w-xl p-6 sm:p-8 relative">
-        <CornerFlourish position="top-left" color="#C59B61" size={20} />
-        <CornerFlourish position="top-right" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-left" color="#C59B61" size={20} />
-        <CornerFlourish position="bottom-right" color="#C59B61" size={20} />
-
-        <h2 className="font-cinzel text-2xl sm:text-3xl font-black tracking-widest text-[#E8E4DC]">
-          EXPEDITION MODE
-        </h2>
-        <p className="font-cinzel text-[10px] tracking-[0.28em] text-[#C59B61] uppercase mt-0.5">
-          DEPLOYMENT PROTOCOL
-        </p>
-
-        <MetallicDivider className="my-4" />
-
-        <div className="space-y-3">
-          <button
-            onClick={onSolo}
-            className="w-full df-panel df-panel-hover p-4 text-left border border-[#C59B61]/50 cursor-pointer transition relative"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-cinzel text-sm font-bold text-[#FFFFFF] tracking-wider">
-                🛡️ SOLO SURVIVAL
-              </span>
-              <span className="font-cinzel text-[9px] uppercase tracking-widest text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5">
-                AVAILABLE
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[#AAA69B]">
-              Full singleplayer campaign. Scavenge components, restart the bunker generator, ignite the beacon, and evade biological Stalkers.
-            </p>
-          </button>
-
-          <button
-            onClick={onHost}
-            className="w-full df-panel df-panel-hover p-4 text-left border border-[#AAA69B]/30 cursor-pointer transition relative"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-cinzel text-sm font-bold text-[#E8E4DC] tracking-wider">
-                📡 CREATE LOCAL SESSION (HOST)
-              </span>
-              <span className="font-cinzel text-[9px] uppercase tracking-widest text-[#C59B61] border border-[#C59B61]/30 px-1.5 py-0.5">
-                2-PLAYER P2P
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[#AAA69B]">
-              Host a local WebRTC match on your Wi-Fi/hotspot. Generate a QR code or signaling token for a nearby survivor.
-            </p>
-          </button>
-
-          <button
-            onClick={onJoin}
-            className="w-full df-panel df-panel-hover p-4 text-left border border-[#AAA69B]/30 cursor-pointer transition relative"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-cinzel text-sm font-bold text-[#E8E4DC] tracking-wider">
-                📥 JOIN LOCAL SESSION
-              </span>
-              <span className="font-cinzel text-[9px] uppercase tracking-widest text-[#AAA69B]">
-                GUEST
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[#AAA69B]">
-              Scan the host’s QR offer or paste the signaling token to connect across the local network.
-            </p>
-          </button>
-
-          <button
-            onClick={onPass}
-            className="w-full df-panel df-panel-hover p-4 text-left border border-[#AAA69B]/30 cursor-pointer transition relative"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-cinzel text-sm font-bold text-[#E8E4DC] tracking-wider">
-                👥 PASS-AND-PLAY CHALLENGE
-              </span>
-              <span className="font-cinzel text-[9px] uppercase tracking-widest text-[#AAA69B]">
-                1 DEVICE
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[#AAA69B]">
-              Turn-based local survival competition on a single shared mobile device.
-            </p>
-          </button>
-        </div>
+      <h2 className="mt-4 font-display text-3xl">Select Mode</h2>
+      <div className="mx-auto mt-6 flex w-full max-w-md flex-col gap-3">
+        <MenuButton primary label="Solo Survival" note="Implemented · AI, objectives, extraction" onClick={onSolo} />
+        <MenuButton label="Create local session (Host)" note="Implemented · 2-player WebRTC proof of concept" onClick={onHost} />
+        <MenuButton label="Join local session" note="Scan or paste the host offer, then return an answer" onClick={onJoin} />
+        <MenuButton label="Pass-and-Play" note="Implemented · turn-based, one device" onClick={onPass} />
+        <MenuButton label="8–12 player sessions" note="Not implemented · blocked until 4-player sync is tested" disabled onClick={() => undefined} />
       </div>
     </Shell>
   )
@@ -447,213 +355,169 @@ export function Lobby({
   canStart: boolean
 }) {
   return (
-    <Shell bg="/bunker-bg.jpg">
-      <div className="df-panel mx-auto my-auto w-full max-w-xl p-6 sm:p-8 relative">
-        <CornerFlourish position="top-left" color="#C59B61" size={24} />
-        <CornerFlourish position="top-right" color="#C59B61" size={24} />
-        <CornerFlourish position="bottom-left" color="#C59B61" size={24} />
-        <CornerFlourish position="bottom-right" color="#C59B61" size={24} />
-
-        <div className="flex items-center justify-between border-b border-[#AAA69B]/20 pb-3">
-          <div className="flex items-center gap-2.5">
-            <Insignia className="h-7 w-7" />
-            <span className="font-cinzel text-sm font-bold tracking-[0.22em] text-[#E8E4DC]">
-              EXPEDITION BUNKER // LOBBY
-            </span>
-          </div>
-
-          <span
-            className={`font-cinzel text-[10px] uppercase tracking-widest px-2.5 py-1 border ${
-              info.status === 'connected' || info.status === 'loopback'
-                ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-400'
-                : 'border-[#C59B61]/50 bg-[#C59B61]/10 text-[#C59B61]'
-            }`}
-          >
-            {info.status.toUpperCase()}
-          </span>
+    <div className="pointer-events-auto absolute inset-x-0 top-[max(0.6rem,env(safe-area-inset-top))] z-30 mx-auto w-[min(100%,28rem)] px-4">
+      <div className="rounded-2xl border border-[#ff6a00]/15 bg-black/75 p-4 backdrop-blur">
+        <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-ivory/60">
+          <span>{info.role === 'host' ? 'Host' : 'Guest'}</span>
+          <span>{info.status}</span>
         </div>
-
-        <div className="mt-3 text-xs text-[#AAA69B] font-mono">
-          Session ID: <span className="text-[#C59B61]">{info.sessionId || 'Local-Host'}</span> · {info.role === 'host' ? 'Host Commander' : 'Assigned Specialist'}
-        </div>
-
-        <MetallicDivider label="SQUAD MANIFEST" className="my-4" />
-
-        <div className="space-y-2.5">
+        <p className="mt-2 text-sm text-ivory/80">{info.detail}</p>
+        <p className="mt-1 text-[11px] text-ivory/50">Session {info.sessionId || '—'} · 2-player WebRTC proof of concept</p>
+        <div className="mt-3 space-y-2">
           {Array.from({ length: 4 }).map((_, i) => {
             const p = info.players[i]
             const locked = i >= 2
             return (
-              <div
-                key={i}
-                className={`p-3 rounded-xs border flex items-center justify-between text-xs transition ${
-                  p
-                    ? 'border-[#C59B61]/40 bg-[#202223] text-[#E8E4DC]'
-                    : locked
-                    ? 'border-white/5 bg-[#171819]/40 opacity-40 text-[#AAA69B]/40'
-                    : 'border-dashed border-[#AAA69B]/20 bg-[#171819]/50 text-[#AAA69B]/60'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="font-cinzel text-[10px] text-[#C59B61] font-bold">
-                    0{i + 1}
-                  </span>
-                  <span className="font-cinzel font-bold tracking-wider">
-                    {p ? p.name : locked ? 'Slot 3-4 (Phase 2 Expansion)' : 'Awaiting Local Specialist'}
-                  </span>
-                </div>
-
-                <div className="font-mono text-[10px] uppercase tracking-wider">
-                  {p ? (
-                    <span className={p.ready ? 'text-emerald-400' : 'text-[#C59B61]'}>
-                      {p.host ? '👑 Host · ' : ''}
-                      {p.ready ? 'Ready' : 'Standby'}
-                    </span>
-                  ) : locked ? (
-                    'Locked'
-                  ) : (
-                    'Open Slot'
-                  )}
-                </div>
+              <div key={i} className="flex items-center justify-between rounded-xl border border-[#ff6a00]/10 px-3 py-2 text-sm">
+                <span>{p ? p.name : locked ? `Slot ${i + 1} (4-player not enabled)` : `Open slot ${i + 1}`}</span>
+                <span className="text-[11px] uppercase text-ivory/50">{p ? `${p.host ? 'Host · ' : ''}${p.ready ? 'Ready' : 'Not ready'} · ${p.connected ? 'Live' : 'Lost'}` : locked ? 'Later' : 'Empty'}</span>
               </div>
             )
           })}
         </div>
-
-        {info.reconnectUntil ? (
-          <p className="mt-3 text-xs text-[#C59B61] font-mono">
-            Reconnect opportunity active until {new Date(info.reconnectUntil).toLocaleTimeString()}
-          </p>
-        ) : null}
-
-        <div className="mt-6 pt-4 border-t border-[#AAA69B]/20 flex gap-3">
-          <button
-            onClick={onReady}
-            className={`flex-1 py-3 font-cinzel text-xs font-bold uppercase tracking-[0.2em] transition cursor-pointer border ${
-              ready ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300' : 'df-btn-silver'
-            }`}
-          >
-            {ready ? '✓ Standby (Ready)' : 'Mark Ready'}
-          </button>
-
+        {info.reconnectUntil ? <p className="mt-2 text-xs text-[#ff6a00]">Reconnect window until {new Date(info.reconnectUntil).toLocaleTimeString()}</p> : null}
+        <div className="mt-3 flex gap-2">
+          <button className="flex-1 rounded-xl border border-ivory/20 py-2 text-sm" onClick={onReady}>{ready ? 'Unready' : 'Ready'}</button>
           {info.role === 'host' ? (
-            <button
-              onClick={onStart}
-              disabled={!canStart}
-              className={`flex-1 py-3 font-cinzel text-xs font-bold uppercase tracking-[0.2em] transition ${
-                canStart ? 'df-btn-gold cursor-pointer' : 'opacity-40 border border-white/10 cursor-not-allowed'
-              }`}
-            >
-              Start Expedition →
+            <button className="flex-1 rounded-xl bg-gradient-to-r from-[#c41e1e] to-[#e85d04] py-2 text-sm text-white disabled:opacity-40" disabled={!canStart} onClick={onStart}>
+              Start match
             </button>
           ) : null}
-
-          <button
-            onClick={onLeave}
-            className="px-4 py-3 border border-red-500/30 bg-red-950/30 text-red-300 font-cinzel text-xs uppercase tracking-wider hover:border-red-500 cursor-pointer"
-          >
-            Leave
-          </button>
+          <button className="rounded-xl border border-[#c41e1e]/40 px-3 py-2 text-sm text-[#c41e1e]" onClick={onLeave}>Leave</button>
         </div>
-
         {info.role === 'host' && !canStart ? (
-          <p className="mt-2 text-[10px] text-[#AAA69B]/60 font-mono text-center">
-            Host launch requires both players marked Ready on an active WebRTC DataChannel.
-          </p>
+          <p className="mt-2 text-[11px] text-ivory/50">Host start requires a live guest, both Ready, and an open data channel.</p>
         ) : null}
       </div>
-    </Shell>
+    </div>
   )
 }
 
 export function Results({
   state,
   onRematch,
+  onRestart,
   onMenu,
 }: {
   state: GameState
-  onRematch: () => void
+  onRematch?: () => void
+  onRestart?: () => void
   onMenu: () => void
 }) {
   const win = state.outcome === 'victory'
+  const handleRestart = onRestart ?? onRematch ?? onMenu
+
+  const grade = win
+    ? state.matchSeconds < 180
+      ? { rank: 'S', title: 'APEX SURVIVOR', color: '#ffb703', note: 'Rapid Evacuation' }
+      : { rank: 'A', title: 'VANGUARD SPECIALIST', color: '#ff6a00', note: 'Successful Extraction' }
+    : state.beaconOn
+    ? { rank: 'B', title: 'FALLEN AT EXTRACT', color: '#e85d04', note: 'Beacon Activated' }
+    : state.generatorOn
+    ? { rank: 'C', title: 'FACILITY OPERATOR', color: '#c41e1e', note: 'Generator Restored' }
+    : { rank: 'D', title: 'MIA IN THE SQUALL', color: '#882222', note: 'Overrun Before Generator' }
+
+  const mins = Math.floor(state.matchSeconds / 60)
+  const secs = Math.floor(state.matchSeconds % 60)
+
   return (
     <Shell dim>
-      <div className="df-panel mx-auto my-auto w-full max-w-xl p-8 relative text-center">
-        <CornerFlourish position="top-left" color={win ? '#C59B61' : '#853D3D'} size={24} />
-        <CornerFlourish position="top-right" color={win ? '#C59B61' : '#853D3D'} size={24} />
-        <CornerFlourish position="bottom-left" color={win ? '#C59B61' : '#853D3D'} size={24} />
-        <CornerFlourish position="bottom-right" color={win ? '#C59B61' : '#853D3D'} size={24} />
+      {/* Top Telemetry Header */}
+      <div className="flex items-center justify-between border-b border-[#ff6a00]/20 pb-3 text-[10px] font-mono tracking-widest uppercase text-ivory/60">
+        <span>MISSION REPORT // SECTOR-04</span>
+        <span className={win ? 'text-emerald-400 font-bold' : 'text-[#c41e1e] font-bold'}>
+          {win ? 'STATUS: RESCUED' : 'STATUS: SIGNAL LOST'}
+        </span>
+      </div>
 
-        <p className="font-cinzel text-xs tracking-[0.35em] text-[#C59B61] uppercase">
-          {win ? 'EXTRACTION CONFIRMED' : 'COMMUNICATIONS SEVERED'}
-        </p>
-
-        <h2 className="font-cinzel text-4xl sm:text-5xl font-black tracking-widest text-[#E8E4DC] mt-2">
-          {win ? 'SURVIVORS RESCUED' : 'EXPEDITION OVERRUN'}
-        </h2>
-
-        <p className="font-editorial text-sm italic text-[#AAA69B] mt-2">
-          {win
-            ? 'The evacuation radio beacon successfully guided the extraction gunship before total squall blackout.'
-            : 'The cold squall overtook the island. All biosignals lost in the darkness.'}
-        </p>
-
-        <MetallicDivider label="EXPEDITION METRICS" className="my-5" />
-
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="p-3 border border-[#AAA69B]/15 bg-[#171819]/70 rounded-xs">
-            <span className="font-cinzel text-[10px] text-[#AAA69B]/60 uppercase tracking-widest block">
-              Match Duration
-            </span>
-            <span className="font-mono text-xl font-bold text-[#C59B61]">
-              {Math.floor(state.matchSeconds)}s
-            </span>
+      {/* Main Outcome Callout & Performance Badge */}
+      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded text-[10px] font-mono tracking-[0.25em] uppercase font-black val-cut-btn" style={{ background: win ? '#ff6a00' : '#c41e1e', color: '#fff' }}>
+            {win ? '★ EVACUATION COMPLETE' : '✕ DEFEAT // SURVIVOR DOWN'}
           </div>
-
-          <div className="p-3 border border-[#AAA69B]/15 bg-[#171819]/70 rounded-xs">
-            <span className="font-cinzel text-[10px] text-[#AAA69B]/60 uppercase tracking-widest block">
-              Mission Outcome
-            </span>
-            <span
-              className={`font-cinzel text-lg font-black uppercase ${
-                win ? 'text-emerald-400' : 'text-[#853D3D]'
-              }`}
-            >
-              {state.outcome.toUpperCase()}
-            </span>
-          </div>
+          <h2 className="mt-2 font-display text-4xl sm:text-5xl font-black tracking-wide text-white">
+            {win ? 'Island Evacuated' : 'The Dark Took The Island'}
+          </h2>
+          <p className="mt-1 text-xs text-ivory/70 font-mono">
+            Elapsed Match Time: <span className="text-white font-bold">{mins}m {secs}s</span> · Reason: <span className="text-[#ff8800] uppercase">{state.outcome}</span>
+          </p>
         </div>
 
-        <div className="space-y-2 mb-6">
-          {state.players.map((p) => (
-            <div
-              key={p.id}
-              className="p-3 border border-[#AAA69B]/15 bg-[#171819]/60 rounded-xs flex items-center justify-between text-xs"
-            >
-              <div className="font-cinzel font-bold text-[#E8E4DC] tracking-wider text-left">
-                {p.name}
+        {/* Tactical Performance Rank Badge */}
+        <div className="flex items-center gap-3 rounded-xl border border-[#ff6a00]/30 bg-black/60 p-3.5 shadow-[0_0_20px_rgba(255,106,0,0.2)]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg font-black text-3xl font-display shadow-inner" style={{ background: grade.color, color: '#000' }}>
+            {grade.rank}
+          </div>
+          <div className="text-left font-mono">
+            <div className="text-xs font-bold text-white uppercase tracking-wider">{grade.title}</div>
+            <div className="text-[10px] text-ivory/50">{grade.note}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Objective Progression Checklist */}
+      <div className="mt-5 rounded-xl border border-[#ff6a00]/20 bg-black/50 p-4">
+        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#ff6a00] font-bold mb-2.5">
+          MISSION OBJECTIVES CHECKLIST
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+          <div className={`p-2 rounded border flex items-center gap-2 ${state.foundRepair ? 'border-[#ff6a00]/40 bg-[#ff6a00]/10 text-white' : 'border-white/10 text-white/40'}`}>
+            <span>{state.foundRepair ? '✓' : '○'}</span>
+            <span>Scavenge Parts</span>
+          </div>
+          <div className={`p-2 rounded border flex items-center gap-2 ${state.generatorOn ? 'border-[#ff6a00]/40 bg-[#ff6a00]/10 text-white' : 'border-white/10 text-white/40'}`}>
+            <span>{state.generatorOn ? '✓' : '○'}</span>
+            <span>Generator Fixed</span>
+          </div>
+          <div className={`p-2 rounded border flex items-center gap-2 ${state.beaconOn ? 'border-[#ff6a00]/40 bg-[#ff6a00]/10 text-white' : 'border-white/10 text-white/40'}`}>
+            <span>{state.beaconOn ? '✓' : '○'}</span>
+            <span>Ridge Beacon</span>
+          </div>
+          <div className={`p-2 rounded border flex items-center gap-2 ${win ? 'border-[#ff6a00]/40 bg-[#ff6a00]/10 text-white' : 'border-white/10 text-white/40'}`}>
+            <span>{win ? '✓' : '○'}</span>
+            <span>Helicopter Evac</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Survivor Scorecards */}
+      <div className="mt-4 space-y-2">
+        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-ivory/50">OPERATOR DEBRIEF</div>
+        {state.players.map((p) => (
+          <div key={p.id} className="rounded-xl border border-white/10 bg-black/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="font-bold text-white text-sm flex items-center gap-2">
+                <span>👤 {p.name}</span>
+                {p.dead ? <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-950 text-red-400 font-mono">K.I.A</span> : <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 font-mono">SURVIVED</span>}
               </div>
-              <div className="font-mono text-[11px] text-[#AAA69B]">
-                Salvaged: <span className="text-[#C59B61]">{p.stats.collected}</span> · Repairs: <span className="text-[#C59B61]">{p.stats.repairs}</span>
+              <div className="text-xs text-ivory/60 font-mono mt-0.5">
+                Items Scavenged: <span className="text-white font-bold">{p.stats.collected}</span> · Generator Repairs: <span className="text-white font-bold">{p.stats.repairs}</span>
               </div>
             </div>
-          ))}
-        </div>
+            <div className="text-xs font-mono text-ivory/70 sm:text-right">
+              Damage Sustained: <span className="text-[#ff8800] font-bold">{Math.round(p.stats.damageTaken)} HP</span>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={onRematch}
-            className="df-btn-gold flex-1 py-3.5 text-xs font-bold tracking-[0.24em] cursor-pointer"
-          >
-            DEPLOY REMATCH →
-          </button>
-          <button
-            onClick={onMenu}
-            className="df-btn-silver flex-1 py-3.5 text-xs font-bold tracking-[0.24em] cursor-pointer"
-          >
-            RETURN TO CITADEL
-          </button>
-        </div>
+      {/* Bottom Action Footer with PROMINENT RESTART BUTTON */}
+      <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-6 pb-2">
+        <button
+          className="flex-1 rounded-xl bg-gradient-to-r from-[#c41e1e] via-[#e85d04] to-[#ff6a00] py-4 text-center font-black uppercase tracking-[0.22em] text-white shadow-[0_0_30px_rgba(255,106,0,0.6)] hover:brightness-110 active:scale-[0.99] transition cursor-pointer flex items-center justify-center gap-2 text-sm sm:text-base val-cut-btn"
+          onClick={handleRestart}
+        >
+          <span className="text-lg">🔄</span>
+          <span>RESTART MISSION</span>
+        </button>
+
+        <button
+          className="rounded-xl border border-white/20 bg-black/40 px-6 py-4 text-xs font-bold uppercase tracking-[0.2em] text-ivory/80 hover:text-white hover:border-[#ff6a00]/50 transition cursor-pointer val-cut-btn"
+          onClick={onMenu}
+        >
+          Return to Menu
+        </button>
       </div>
     </Shell>
   )
@@ -661,40 +525,18 @@ export function Results({
 
 export function HostLost({ onMenu, onReconnect }: { onMenu: () => void; onReconnect?: () => void }) {
   return (
-    <Shell bg="/bunker-bg.jpg">
-      <div className="df-panel mx-auto my-auto w-full max-w-md p-8 relative text-center">
-        <CornerFlourish position="top-left" color="#853D3D" size={24} />
-        <CornerFlourish position="top-right" color="#853D3D" size={24} />
-        <CornerFlourish position="bottom-left" color="#853D3D" size={24} />
-        <CornerFlourish position="bottom-right" color="#853D3D" size={24} />
-
-        <p className="font-cinzel text-xs tracking-[0.3em] text-[#853D3D]">
-          AUTHORITY CHANNEL LOST
-        </p>
-        <h2 className="font-cinzel text-3xl font-black tracking-widest text-[#E8E4DC] mt-2">
-          HOST DISCONNECTED
-        </h2>
-        <p className="font-sans text-xs text-[#AAA69B] leading-relaxed mt-3">
-          The host owned simulation authority for enemy AI, health calculations, and objectives. If the host is still in the reconnect window, you can exchange a fresh signal bundle.
-        </p>
-
-        <div className="mt-6 flex flex-col gap-2.5">
-          {onReconnect ? (
-            <button
-              onClick={onReconnect}
-              className="df-btn-gold w-full py-3 text-xs tracking-[0.2em] cursor-pointer"
-            >
-              Reconnect with New Offer
-            </button>
-          ) : null}
-          <button
-            onClick={onMenu}
-            className="df-btn-silver w-full py-3 text-xs tracking-[0.2em] cursor-pointer"
-          >
-            Return to Citadel
-          </button>
-        </div>
-      </div>
+    <Shell>
+      <p className="text-xs tracking-[0.3em] text-[#c41e1e]">HOST DISCONNECTED</p>
+      <h2 className="mt-3 font-display text-4xl">No host migration</h2>
+      <p className="mt-3 max-w-md text-sm text-ivory/75">
+        The host owned health, enemies, inventory, and objectives. Authority does not move to this device. If the host is still in the reconnect window, they must generate a new offer (SDP + ICE). A room code is not enough.
+      </p>
+      {onReconnect ? (
+        <button className="mt-8 rounded-2xl bg-gradient-to-r from-[#c41e1e] to-[#e85d04] px-6 py-3 text-white" onClick={onReconnect}>
+          Reconnect with a new offer
+        </button>
+      ) : null}
+      <button className="mt-3 rounded-2xl border border-ivory/20 px-6 py-3" onClick={onMenu}>Return to Menu</button>
     </Shell>
   )
 }

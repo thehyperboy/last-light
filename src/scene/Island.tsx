@@ -28,7 +28,10 @@ export function Island({ state, quality }: { state: GameState; quality: 'low' | 
       <fog attach="fog" args={[sky, 12, quality === 'low' ? 42 : 62]} />
       <hemisphereLight args={['#9eb3a8', '#1a1814', 0.55]} />
       <directionalLight position={[18, 28, 8]} intensity={0.85 - state.storm * 0.35} color="#c9d6cf" />
-      <pointLight position={[AREAS.extract.x, 6, AREAS.extract.z]} intensity={state.beaconOn ? 4 : 0.6} color="#ffb44a" distance={18} />
+      <pointLight position={[AREAS.extract.x, 6, AREAS.extract.z]} intensity={state.beaconOn ? 5 : 0.8} color={state.beaconOn ? '#ff8800' : '#c44a20'} distance={22} />
+      {state.generatorOn ? (
+        <pointLight position={[AREAS.bunker.x, 2.5, AREAS.bunker.z]} intensity={3} color="#ff8800" distance={16} />
+      ) : null}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
         <circleGeometry args={[48, 40]} />
         <meshStandardMaterial color="#243328" roughness={0.95} />
@@ -64,7 +67,7 @@ export function Island({ state, quality }: { state: GameState; quality: 'low' | 
       </mesh>
       <mesh position={[AREAS.bunker.x, 1.1, AREAS.bunker.z]} >
         <boxGeometry args={[1.2, 1.6, 1.2]} />
-        <meshStandardMaterial color={state.generatorOn ? '#d7a441' : '#6a6258'} emissive={state.generatorOn ? '#c48a22' : '#000'} emissiveIntensity={state.generatorOn ? 0.8 : 0} />
+        <meshStandardMaterial color={state.generatorOn ? '#e85d04' : '#3d3028'} emissive={state.generatorOn ? '#ff6a00' : '#1a0c06'} emissiveIntensity={state.generatorOn ? 1.2 : 0.1} />
       </mesh>
       <mesh position={[AREAS.extract.x, 3.4 + Math.sin(state.tick * 0.12) * 0.12, AREAS.extract.z]}>
         <cylinderGeometry args={[0.18, 0.22, 6.4, 6]} />
@@ -72,15 +75,15 @@ export function Island({ state, quality }: { state: GameState; quality: 'low' | 
       </mesh>
       <mesh position={[AREAS.extract.x, 6.6, AREAS.extract.z]}>
         <sphereGeometry args={[0.42, 10, 10]} />
-        <meshStandardMaterial color={state.beaconOn ? '#ffce70' : '#6d5a3a'} emissive={state.beaconOn ? '#ffb347' : '#22180c'} emissiveIntensity={state.beaconOn ? 1.4 : 0.2} />
+        <meshStandardMaterial color={state.beaconOn ? '#ffaa00' : '#4a2818'} emissive={state.beaconOn ? '#ff6a00' : '#220800'} emissiveIntensity={state.beaconOn ? 1.8 : 0.2} />
       </mesh>
       {state.pickups.filter((p) => !p.taken).map((p) => (
         <mesh key={p.id} position={[p.x, 0.45, p.z]}>
           <boxGeometry args={[0.42, 0.42, 0.42]} />
           <meshStandardMaterial
-            color={p.kind === 'meds' ? '#c45d5d' : p.kind === 'batteries' ? '#d6b25a' : p.kind === 'repair' ? '#6ea0c8' : '#8a8f86'}
-            emissive="#222"
-            emissiveIntensity={0.3}
+            color={p.kind === 'meds' ? '#c41e1e' : p.kind === 'batteries' ? '#e85d04' : p.kind === 'repair' ? '#ff6a00' : '#888f98'}
+            emissive={p.kind === 'meds' ? '#ff2222' : p.kind === 'batteries' ? '#ff8800' : p.kind === 'repair' ? '#ff6a00' : '#444'}
+            emissiveIntensity={0.5}
           />
         </mesh>
       ))}

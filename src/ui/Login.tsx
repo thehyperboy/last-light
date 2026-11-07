@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { loadProfile, saveProfile, type UserProfile } from '../game/storage'
+import { useState } from 'react'
+import {
+  authenticateOperator,
+  authenticateGuest,
+  registerOperator,
+  getRegisteredProfiles,
+  removeRegisteredProfile,
+  loadProfile,
+  type UserProfile,
+} from '../game/storage'
 
 type Props = {
   onLogin: (callsign: string) => void
-  onPlaySolo?: () => void
+  onPlaySound?: () => void
   onPlayMulti?: () => void
   onOpenSettings?: () => void
   onOpenGuide?: () => void
   onExit?: () => void
-  onPlaySound?: () => void
 }
 
 const DEFAULT_CALLSIGNS = [
@@ -18,278 +25,474 @@ const DEFAULT_CALLSIGNS = [
   'Vanguard-2',
   'Raven-11',
   'Ghost-05',
-  'Zero-Six',
   'Apex-3',
-  'Phoenix-12',
-  'Cipher-8',
+  'Ignis-8',
+  'Singe-02',
+  'Viper-14',
 ]
 
-export function Login({
-  onLogin,
-  onPlaySolo,
-  onPlayMulti,
-  onOpenSettings,
-  onOpenGuide,
-  onExit,
-  onPlaySound,
-}: Props) {
-  const saved = loadProfile()
-  const [callsign, setCallsign] = useState(() => saved?.callsign || `Survivor-${Math.floor(Math.random() * 90 + 10)}`)
-  const [remember] = useState(() => saved?.remember ?? true)
+export function Login({ onLogin, onPlaySound }: Props) {
+  const savedActive = loadProfile()
+  const registeredAccounts = getRegisteredProfiles()
+
+  const [mode, setMode] = useState<'signin' | 'register'>(() => {
+    return registeredAccounts.length > 0 ? 'signin' : 'register'
+  })
+
+  // Sign-in state
+  const [signInCallsign, setSignInCallsign] = useState(() => savedActive?.callsign || registeredAccounts[0]?.callsign || '')
+  const [signInPasscode, setSignInPasscode] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
+
+  // Registration state
+  const [regCallsign, setRegCallsign] = useState(() => `Survivor-${Math.floor(Math.random() * 90 + 10)}`)
+  const [regPasscode, setRegPasscode] = useState('')
+  const [regConfirmPass, setRegConfirmPass] = useState('')
+  const [regRemember, setRegRemember] = useState(true)
+
+  // Shared UI state
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<UserProfile[]>(registeredAccounts)
 
   const handleRollCallsign = () => {
     onPlaySound?.()
     const next = DEFAULT_CALLSIGNS[Math.floor(Math.random() * DEFAULT_CALLSIGNS.length)]
-    setCallsign(`${next.split('-')[0]}-${Math.floor(Math.random() * 90 + 10)}`)
+    const newName = `${next.split('-')[0]}-${Math.floor(Math.random() * 90 + 10)}`
+    setRegCallsign(newName)
   }
 
-  const handleStart = (action: 'story' | 'multi' | 'enter') => {
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault()
     onPlaySound?.()
     setError(null)
-    const name = callsign.trim()
-    if (!name) {
-      setError('Please enter a survivor callsign')
+
+    const res = authenticateOperator(signInCallsign, signInPasscode, rememberMe)
+    if (!res.success) {
+      setError(res.error)
       return
     }
 
-    const profile: UserProfile = {
-      callsign: name,
-      passcode: '',
-      clearance: 'CITADEL-SURVIVOR',
-      remember,
-      lastLogin: Date.now(),
+    setSuccessMsg(`CLEARANCE APPROVED // WELCOME OPERATOR ${res.profile.callsign}`)
+    setTimeout(() => {
+      onLogin(res.profile.callsign)
+    }, 450)
+  }
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault()
+    onPlaySound?.()
+    setError(null)
+
+    if (regPasscode !== regConfirmPass) {
+      setError('Clearance passcodes do not match. Verify and retype.')
+      return
     }
 
-    if (remember) {
-      saveProfile(profile)
+    const res = registerOperator(regCallsign, regPasscode, regRemember)
+    if (!res.success) {
+      setError(res.error)
+      return
     }
 
-    if (action === 'story') {
-      if (onPlaySolo) {
-        onLogin(name)
-        onPlaySolo()
-      } else {
-        onLogin(name)
-      }
-    } else if (action === 'multi') {
-      if (onPlayMulti) {
-        onLogin(name)
-        onPlayMulti()
-      } else {
-        onLogin(name)
-      }
-    } else {
-      onLogin(name)
+    setAccounts(getRegisteredProfiles())
+    setSuccessMsg(`OPERATOR INITIALIZED // WELCOME TO SECTOR-04`)
+    setTimeout(() => {
+      onLogin(res.profile.callsign)
+    }, 450)
+  }
+
+  const handleGuestLogin = () => {
+    onPlaySound?.()
+    setError(null)
+    const guest = authenticateGuest()
+    setSuccessMsg(`TEMPORARY CLEARANCE GRANTED // ${guest.callsign}`)
+    setTimeout(() => {
+      onLogin(guest.callsign)
+    }, 350)
+  }
+
+  const handleDeleteAccount = (callsign: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    onPlaySound?.()
+    removeRegisteredProfile(callsign)
+    const updated = getRegisteredProfiles()
+    setAccounts(updated)
+    if (signInCallsign.toLowerCase() === callsign.toLowerCase()) {
+      setSignInCallsign(updated[0]?.callsign || '')
+      setSignInPasscode('')
+    }
+    if (updated.length === 0) {
+      setMode('register')
     }
   }
 
-  // Handle ESC key to exit / reset
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onPlaySound?.()
-        if (onExit) onExit()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onExit, onPlaySound])
-
-  // Canvas atmospheric particle dust & drifting smoke
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let animId = 0
-    let width = (canvas.width = canvas.offsetWidth)
-    let height = (canvas.height = canvas.offsetHeight)
-
-    const handleResize = () => {
-      if (!canvas) return
-      width = canvas.width = canvas.offsetWidth
-      height = canvas.height = canvas.offsetHeight
-    }
-    window.addEventListener('resize', handleResize)
-
-    // Floating subtle dust motes in room
-    const motes = Array.from({ length: 32 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: -(Math.random() * 0.4 + 0.1),
-      size: Math.random() * 1.8 + 0.6,
-      alpha: Math.random() * 0.4 + 0.1,
-    }))
-
-    const render = () => {
-      ctx.clearRect(0, 0, width, height)
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
-      for (const m of motes) {
-        m.x += m.vx
-        m.y += m.vy
-        if (m.y < 0) {
-          m.y = height + 10
-          m.x = Math.random() * width
-        }
-        if (m.x < 0) m.x = width
-        if (m.x > width) m.x = 0
-
-        ctx.beginPath()
-        ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255, 255, 255, ${m.alpha})`
-        ctx.fill()
-      }
-
-      animId = requestAnimationFrame(render)
-    }
-
-    animId = requestAnimationFrame(render)
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [])
-
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[#111214] text-white select-none">
-      {/* 4K Photorealistic Studio Room Background (Reference Image 1) */}
+    <div className="relative min-h-dvh w-full overflow-hidden bg-[#070707] text-[#f0e6d8] select-none font-sans">
+      {/* Background Graphic with Atmospheric Tone */}
       <img
-        src="/room-menu-bg.jpg"
-        alt="Studio Room Background"
-        className="absolute inset-0 h-full w-full object-cover object-center brightness-90 contrast-105"
+        src="/valorant-bg.jpg"
+        alt="Facility interior"
+        className="absolute inset-0 h-full w-full object-cover object-center brightness-[0.35] contrast-125 saturate-75 filter"
       />
 
-      {/* Atmospheric Smoke Vignette Mask - Heavy billowing organic darkness on left 40% */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0d0e10] via-[#0d0e10]/95 via-35% to-transparent to-65%" />
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-full sm:w-[45vw] bg-radial-[circle_at_left_center,rgba(13,14,16,0.98)_0%,rgba(13,14,16,0.85)_60%,transparent_100%]" />
-      <div className="pointer-events-none absolute inset-0 bg-radial-[circle_at_top_right,rgba(255,60,90,0.1)_0%,transparent_50%]" />
+      {/* Atmospheric Overlays — Deep Black, Lava Red, and Radiant Ember Glow */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#070707] via-[#090807]/80 to-[#070707]/90" />
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-gradient-to-b from-[#ff6a00]/20 via-[#c41e1e]/10 to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-[#c41e1e]/15 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-[#ff8800]/10 blur-3xl" />
 
-      {/* Subtle Dust & Ambient Particle Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none absolute inset-0 z-10 h-full w-full"
-      />
-
-      {/* ======================= LEFT MENU CONTAINER ======================= */}
-      <div className="relative z-20 flex h-full w-full sm:w-[50vw] md:w-[42vw] flex-col justify-center px-8 sm:px-14 md:px-20 py-12">
-        <div className="max-w-md">
-          {/* LOGO: Weathered Distressed Stencil Heading */}
-          <div className="mb-8 sm:mb-12">
-            <h1 className="grunge-title text-5xl sm:text-6xl md:text-7xl font-black tracking-[0.14em] drop-shadow-2xl">
-              LAST LIGHT
-            </h1>
-            <p className="mt-2 text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-white/50">
-              OFFLINE SURVIVAL PROTOCOL // 4-12 PLAYERS
-            </p>
+      {/* Main Container */}
+      <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-4 py-8">
+        {/* Header Branding */}
+        <div className="text-center animate-fade-in">
+          <div className="inline-flex items-center gap-2 rounded bg-gradient-to-r from-[#c41e1e] via-[#e85d04] to-[#ff6a00] px-4 py-1 text-[10px] font-black uppercase tracking-[0.32em] text-white val-cut-btn mb-2.5 shadow-lg shadow-[#ff6a00]/30">
+            <span className="inline-block h-2 w-2 rounded-full bg-white animate-pulse" />
+            SECURITY CLEARANCE // SECTOR-04
           </div>
-
-          {/* SURVIVOR CALLSIGN PROFILE CHIP (Quick name changer) */}
-          <div className="mb-6 rounded-sm border border-white/10 bg-black/40 p-3 backdrop-blur-md">
-            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-white/50 mb-1">
-              <span>OPERATOR CALLSIGN</span>
-              <button
-                type="button"
-                onClick={handleRollCallsign}
-                className="text-[#00f0ff] hover:underline cursor-pointer"
-              >
-                🎲 Random
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={callsign}
-                onChange={(e) => setCallsign(e.target.value)}
-                maxLength={20}
-                placeholder="Enter survivor name..."
-                className="w-full bg-transparent font-bold tracking-wider text-sm sm:text-base text-white placeholder-white/30 focus:outline-none"
-              />
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            </div>
-
-            {error ? (
-              <div className="mt-1 text-[11px] text-red-400 font-mono">{error}</div>
-            ) : null}
-          </div>
-
-          {/* VERTICAL MENU OPTIONS (Exact layout from Reference Image 1) */}
-          <nav className="flex flex-col items-start gap-4 sm:gap-5">
-            {/* 1. PLAY STORY (Iconic Distressed White Chalk / Brush-Stroke Pill) */}
-            <button
-              type="button"
-              onClick={() => handleStart('story')}
-              className="chalk-pill text-xs sm:text-sm md:text-base tracking-[0.22em] cursor-pointer group"
-              title="Start Solo Story Campaign"
-            >
-              <span className="relative z-10 font-black">PLAY STORY</span>
-            </button>
-
-            {/* 2. MULTIPLAYER */}
-            <button
-              type="button"
-              onClick={() => handleStart('multi')}
-              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
-              title="Local Network / Offline WebRTC Multiplayer"
-            >
-              MULTIPLAYER
-            </button>
-
-            {/* 3. HELP & GUIDE */}
-            <button
-              type="button"
-              onClick={() => {
-                onPlaySound?.()
-                if (onOpenGuide) onOpenGuide()
-                else onLogin(callsign)
-              }}
-              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
-              title="Survival Guide and Controls"
-            >
-              HELP & GUIDE
-            </button>
-
-            {/* 4. SETTINGS */}
-            <button
-              type="button"
-              onClick={() => {
-                onPlaySound?.()
-                if (onOpenSettings) onOpenSettings()
-                else onLogin(callsign)
-              }}
-              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer"
-              title="Audio, Graphics, and Display Settings"
-            >
-              SETTINGS
-            </button>
-
-            {/* 5. EXIT */}
-            <button
-              type="button"
-              onClick={() => {
-                onPlaySound?.()
-                if (onExit) onExit()
-              }}
-              className="room-menu-item text-xs sm:text-sm md:text-base tracking-[0.24em] cursor-pointer text-white/50 hover:text-red-400"
-              title="Exit / Reset Session"
-            >
-              EXIT
-            </button>
-          </nav>
+          <h1 className="val-logo mt-1 text-5xl font-black tracking-[0.22em] text-white sm:text-6xl md:text-7xl drop-shadow-[0_4px_30px_rgba(255,106,0,0.5)]">
+            LAST LIGHT
+          </h1>
+          <p className="mt-1 text-xs tracking-[0.35em] text-[#ff8800] font-mono uppercase">
+            OPERATOR AUTHENTICATION TERMINAL
+          </p>
         </div>
-      </div>
 
-      {/* ================= BOTTOM RIGHT KEYBOARD PROMPT ================= */}
-      <div className="absolute bottom-6 right-8 z-20 hidden sm:flex items-center gap-2 font-mono text-xs tracking-widest text-white/40">
-        <kbd className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/70 shadow-sm">
-          ESC
-        </kbd>
-        <span>EXIT</span>
+        {/* Central Terminal Panel (Angled Cuts + Fiery Orange-Red Border Glow) */}
+        <div className="val-panel val-cut-tr mt-6 w-full max-w-lg p-6 sm:p-8 shadow-[0_10px_50px_rgba(0,0,0,0.85)] border border-[#ff6a00]/25 relative bg-[#0b0a09]/90 backdrop-blur-xl">
+          {/* Top Telemetry Header */}
+          <div className="flex items-center justify-between border-b border-[#ff6a00]/20 pb-3 text-[10px] uppercase tracking-widest text-[#f0e6d8]/60 font-mono">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#ff6a00] shadow-[0_0_8px_#ff6a00]" />
+              <span>TERMINAL: #VAL-SEC-04</span>
+            </div>
+            <span className="text-[#ff6a00] font-semibold tracking-wider">OFFLINE LAN ENCRYPTED</span>
+          </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="mt-5 grid grid-cols-2 gap-2 border-b border-[#ff6a00]/15 pb-4">
+            <button
+              type="button"
+              onClick={() => {
+                onPlaySound?.()
+                setError(null)
+                setMode('signin')
+              }}
+              className={`py-2 px-3 text-xs font-black uppercase tracking-[0.2em] transition-all cursor-pointer val-cut-btn ${
+                mode === 'signin'
+                  ? 'bg-gradient-to-r from-[#c41e1e] to-[#e85d04] text-white shadow-[0_0_15px_rgba(255,106,0,0.35)]'
+                  : 'bg-[#15120f]/80 text-[#f0e6d8]/60 hover:text-white hover:bg-[#1f1914]'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onPlaySound?.()
+                setError(null)
+                setMode('register')
+              }}
+              className={`py-2 px-3 text-xs font-black uppercase tracking-[0.2em] transition-all cursor-pointer val-cut-btn ${
+                mode === 'register'
+                  ? 'bg-gradient-to-r from-[#c41e1e] to-[#e85d04] text-white shadow-[0_0_15px_rgba(255,106,0,0.35)]'
+                  : 'bg-[#15120f]/80 text-[#f0e6d8]/60 hover:text-white hover:bg-[#1f1914]'
+              }`}
+            >
+              New Operator
+            </button>
+          </div>
+
+          {/* Quick Select from Saved Operators (if in sign-in mode and accounts exist) */}
+          {mode === 'signin' && accounts.length > 0 ? (
+            <div className="mt-4">
+              <label className="text-[10px] font-mono uppercase tracking-widest text-[#f0e6d8]/50 block mb-1.5">
+                Saved Terminal Operators:
+              </label>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                {accounts.map((acc) => {
+                  const isSelected = signInCallsign.toLowerCase() === acc.callsign.toLowerCase()
+                  return (
+                    <div
+                      key={acc.callsign}
+                      onClick={() => {
+                        onPlaySound?.()
+                        setSignInCallsign(acc.callsign)
+                        setError(null)
+                      }}
+                      className={`group flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition cursor-pointer border ${
+                        isSelected
+                          ? 'border-[#ff6a00] bg-[#ff6a00]/20 text-white shadow-[0_0_10px_rgba(255,106,0,0.3)]'
+                          : 'border-white/10 bg-[#15120f] text-[#f0e6d8]/70 hover:border-white/30 hover:text-white'
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />
+                      <span className="font-bold">{acc.callsign}</span>
+                      <button
+                        type="button"
+                        title="Forget this operator"
+                        onClick={(e) => handleDeleteAccount(acc.callsign, e)}
+                        className="ml-1 text-white/30 hover:text-[#c41e1e] font-sans text-xs px-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ================= SIGN IN FORM ================= */}
+          {mode === 'signin' ? (
+            <form className="mt-4 space-y-4" onSubmit={handleSignIn}>
+              {/* Callsign Input */}
+              <div>
+                <label htmlFor="signin-callsign" className="text-xs font-bold uppercase tracking-wider text-white">
+                  Operator Callsign
+                </label>
+                <div className="relative mt-1.5">
+                  <input
+                    id="signin-callsign"
+                    type="text"
+                    autoComplete="username"
+                    maxLength={20}
+                    className="w-full rounded-sm border border-[#ff6a00]/25 bg-[#120f0c] px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/25 focus:border-[#ff6a00] focus:shadow-[0_0_15px_rgba(255,106,0,0.35)] focus:outline-none val-cut-btn transition"
+                    placeholder="Enter survivor callsign (e.g. Apex-3)"
+                    value={signInCallsign}
+                    onChange={(e) => setSignInCallsign(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Passcode Input */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="signin-passcode" className="text-xs font-bold uppercase tracking-wider text-white">
+                    Clearance Passcode
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="text-[10px] uppercase font-mono tracking-wider text-[#ff8800] hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? '[Hide]' : '[Show]'}
+                  </button>
+                </div>
+                <div className="relative mt-1.5">
+                  <input
+                    id="signin-passcode"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    className="w-full rounded-sm border border-[#ff6a00]/25 bg-[#120f0c] px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/25 focus:border-[#ff6a00] focus:shadow-[0_0_15px_rgba(255,106,0,0.35)] focus:outline-none val-cut-btn transition"
+                    placeholder="Enter clearance passcode"
+                    value={signInPasscode}
+                    onChange={(e) => setSignInPasscode(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Remember Me */}
+              <div className="flex items-center justify-between pt-1 text-xs text-[#f0e6d8]/70">
+                <label className="flex cursor-pointer select-none items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded-sm border-white/30 bg-black/60 accent-[#ff6a00]"
+                  />
+                  <span className="font-mono text-xs uppercase tracking-wider">Remember on this terminal</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register')
+                    setRegCallsign(signInCallsign || `Survivor-${Math.floor(Math.random() * 90 + 10)}`)
+                  }}
+                  className="text-[10px] font-mono text-[#ff8800] hover:underline cursor-pointer"
+                >
+                  Need new account?
+                </button>
+              </div>
+
+              {/* Error Box */}
+              {error ? (
+                <div className="rounded border border-[#c41e1e] bg-[#c41e1e]/20 p-3 text-xs text-[#ffb4b4] font-mono flex items-start gap-2 shadow-[0_0_15px_rgba(196,30,30,0.3)] animate-shake">
+                  <span className="text-base leading-none">⚠️</span>
+                  <div className="flex-1 leading-relaxed">{error}</div>
+                </div>
+              ) : null}
+
+              {/* Success Notification */}
+              {successMsg ? (
+                <div className="rounded border border-[#ff6a00] bg-[#ff6a00]/20 p-3 text-xs text-white font-mono flex items-center gap-2 shadow-[0_0_20px_rgba(255,106,0,0.4)]">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>{successMsg}</span>
+                </div>
+              ) : null}
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2.5">
+                <button
+                  type="submit"
+                  className="val-cut-btn w-full bg-gradient-to-r from-[#c41e1e] via-[#e85d04] to-[#ff6a00] py-3.5 text-center text-sm font-black uppercase tracking-[0.24em] text-white shadow-[0_0_25px_rgba(255,106,0,0.4)] transition hover:brightness-110 hover:shadow-[0_0_35px_rgba(255,106,0,0.7)] active:scale-[0.99] cursor-pointer"
+                >
+                  Authenticate & Enter
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGuestLogin}
+                  className="val-cut-btn w-full border border-[#ff6a00]/30 bg-[#15120f]/80 py-2.5 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#f0e6d8]/80 transition hover:bg-[#201a14] hover:border-[#ff6a00]/60 hover:text-white cursor-pointer"
+                >
+                  Quick Deploy as Guest
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* ================= REGISTER FORM ================= */
+            <form className="mt-4 space-y-4" onSubmit={handleRegister}>
+              {/* Callsign Input */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="reg-callsign" className="text-xs font-bold uppercase tracking-wider text-white">
+                    New Survivor Callsign
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRollCallsign}
+                    className="text-[10px] font-mono uppercase tracking-wider text-[#ff8800] hover:underline cursor-pointer"
+                  >
+                    [Roll Random]
+                  </button>
+                </div>
+                <div className="relative mt-1.5">
+                  <input
+                    id="reg-callsign"
+                    type="text"
+                    autoComplete="username"
+                    maxLength={20}
+                    className="w-full rounded-sm border border-[#ff6a00]/25 bg-[#120f0c] px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/25 focus:border-[#ff6a00] focus:shadow-[0_0_15px_rgba(255,106,0,0.35)] focus:outline-none val-cut-btn transition"
+                    placeholder="e.g. Specter-4"
+                    value={regCallsign}
+                    onChange={(e) => setRegCallsign(e.target.value)}
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-[#f0e6d8]/40 font-mono">
+                  3-20 characters. Letters, numbers, and dashes.
+                </p>
+              </div>
+
+              {/* Passcode Input */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="reg-passcode" className="text-xs font-bold uppercase tracking-wider text-white">
+                    Create Clearance Passcode
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="text-[10px] uppercase font-mono tracking-wider text-[#ff8800] hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? '[Hide]' : '[Show]'}
+                  </button>
+                </div>
+                <div className="relative mt-1.5">
+                  <input
+                    id="reg-passcode"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className="w-full rounded-sm border border-[#ff6a00]/25 bg-[#120f0c] px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/25 focus:border-[#ff6a00] focus:shadow-[0_0_15px_rgba(255,106,0,0.35)] focus:outline-none val-cut-btn transition"
+                    placeholder="Min 4 characters"
+                    value={regPasscode}
+                    onChange={(e) => setRegPasscode(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Confirm Passcode Input */}
+              <div>
+                <label htmlFor="reg-confirm" className="text-xs font-bold uppercase tracking-wider text-white">
+                  Confirm Clearance Passcode
+                </label>
+                <div className="relative mt-1.5">
+                  <input
+                    id="reg-confirm"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className={`w-full rounded-sm border bg-[#120f0c] px-4 py-3 font-mono text-sm tracking-wide text-white placeholder-white/25 focus:outline-none val-cut-btn transition ${
+                      regConfirmPass && regConfirmPass !== regPasscode
+                        ? 'border-[#c41e1e] focus:border-[#c41e1e]'
+                        : 'border-[#ff6a00]/25 focus:border-[#ff6a00]'
+                    }`}
+                    placeholder="Retype clearance passcode"
+                    value={regConfirmPass}
+                    onChange={(e) => setRegConfirmPass(e.target.value)}
+                  />
+                </div>
+                {regConfirmPass && regConfirmPass !== regPasscode ? (
+                  <p className="mt-1 text-[10px] text-[#ff8080] font-mono">
+                    Passcodes do not match.
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Remember on terminal */}
+              <div className="flex items-center justify-between pt-1 text-xs text-[#f0e6d8]/70">
+                <label className="flex cursor-pointer select-none items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={regRemember}
+                    onChange={(e) => setRegRemember(e.target.checked)}
+                    className="h-4 w-4 rounded-sm border-white/30 bg-black/60 accent-[#ff6a00]"
+                  />
+                  <span className="font-mono text-xs uppercase tracking-wider">Save operator on this device</span>
+                </label>
+              </div>
+
+              {/* Error Box */}
+              {error ? (
+                <div className="rounded border border-[#c41e1e] bg-[#c41e1e]/20 p-3 text-xs text-[#ffb4b4] font-mono flex items-start gap-2 shadow-[0_0_15px_rgba(196,30,30,0.3)]">
+                  <span className="text-base leading-none">⚠️</span>
+                  <div className="flex-1 leading-relaxed">{error}</div>
+                </div>
+              ) : null}
+
+              {/* Success Notification */}
+              {successMsg ? (
+                <div className="rounded border border-[#ff6a00] bg-[#ff6a00]/20 p-3 text-xs text-white font-mono flex items-center gap-2 shadow-[0_0_20px_rgba(255,106,0,0.4)]">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>{successMsg}</span>
+                </div>
+              ) : null}
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2.5">
+                <button
+                  type="submit"
+                  className="val-cut-btn w-full bg-gradient-to-r from-[#c41e1e] via-[#e85d04] to-[#ff6a00] py-3.5 text-center text-sm font-black uppercase tracking-[0.24em] text-white shadow-[0_0_25px_rgba(255,106,0,0.4)] transition hover:brightness-110 hover:shadow-[0_0_35px_rgba(255,106,0,0.7)] active:scale-[0.99] cursor-pointer"
+                >
+                  Initialize Operator Profile
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGuestLogin}
+                  className="val-cut-btn w-full border border-[#ff6a00]/30 bg-[#15120f]/80 py-2.5 text-center text-xs font-bold uppercase tracking-[0.2em] text-[#f0e6d8]/80 transition hover:bg-[#201a14] hover:border-[#ff6a00]/60 hover:text-white cursor-pointer"
+                >
+                  Quick Deploy as Guest
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Security Telemetry Footer */}
+          <div className="mt-6 border-t border-[#ff6a00]/20 pt-4 flex items-center justify-between text-[10px] uppercase tracking-widest text-[#f0e6d8]/40 font-mono">
+            <span>LAST LIGHT EMBER ENGINE</span>
+            <span>100% OFFLINE CAPABLE</span>
+          </div>
+        </div>
       </div>
     </div>
   )

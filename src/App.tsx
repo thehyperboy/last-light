@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createAudio } from './game/audio'
 import { areaName, currentObjective } from './game/simulation'
-import { loadProfile, loadSettings, loadTutorialSeen, newId, newSessionId, saveSettings, saveTutorialSeen } from './game/storage'
+import { clearProfile, loadProfile, loadSettings, loadTutorialSeen, newId, newSessionId, saveSettings, saveTutorialSeen } from './game/storage'
 import type { GameState, PlayerInput, Settings } from './game/types'
 import { BEACON, CRAFTING, GENERATOR, dist2 } from './game/world'
 import { MatchSession, type SessionInfo } from './net/session'
@@ -130,6 +130,21 @@ export default function App() {
     setPaused(false)
   }
 
+  const restartMatch = useCallback(() => {
+    audioRef.current.unlock()
+    const s = sessionRef.current
+    if (s?.role === 'host') {
+      s.rematch((Math.random() * 1e9) | 0)
+    } else {
+      sessionRef.current?.dispose()
+      sessionRef.current = null
+      const fresh = ensureSession()
+      fresh.startSolo((Math.random() * 1e9) | 0)
+    }
+    setPaused(false)
+    setScreen('play')
+  }, [ensureSession])
+
   const startHostPairing = () => {
     audioRef.current.unlock()
     sessionRef.current?.dispose()
@@ -235,6 +250,7 @@ export default function App() {
         onOpenGuide={() => setScreen('how')}
         onExit={() => {
           audioRef.current.play('ui')
+          clearProfile()
           setScreen('login')
         }}
         onPlaySound={() => {
@@ -284,10 +300,8 @@ export default function App() {
     return (
       <Results
         state={state}
-        onRematch={() => {
-          sessionRef.current?.rematch((Math.random() * 1e9) | 0)
-          setScreen('play')
-        }}
+        onRestart={restartMatch}
+        onRematch={restartMatch}
         onMenu={() => {
           sessionRef.current?.dispose()
           sessionRef.current = null
@@ -306,10 +320,10 @@ export default function App() {
       {state && me ? (
         <GameView state={state} localId={me.id} lookX={look.x} lookY={look.y} settings={settings} />
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#1f3a2e,transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#2b1106,transparent)]" />
       )}
       {pairing && s ? (
-        <div className="absolute inset-0 z-40 overflow-auto bg-charcoal/95">
+        <div className="absolute inset-0 z-40 overflow-auto bg-[#070707]/95">
           <Pairing
             role={pairRole}
             sessionId={sessionId || s.sessionId}
@@ -364,11 +378,11 @@ export default function App() {
         />
       ) : null}
       {screen === 'play' && info?.role === 'host' && info.reconnectUntil ? (
-        <div className="absolute inset-x-3 top-20 z-30 rounded-2xl border border-amber/40 bg-black/80 p-3 text-sm">
-          <p className="text-amber">Guest disconnected</p>
+        <div className="absolute inset-x-3 top-20 z-30 rounded-2xl border border-[#ff6a00]/40 bg-black/85 p-3 text-sm shadow-[0_0_20px_rgba(255,106,0,0.2)]">
+          <p className="text-[#ff6a00] font-bold">Guest disconnected</p>
           <p className="mt-1 text-ivory/70">Match is still hosted here. Share a new offer before {new Date(info.reconnectUntil).toLocaleTimeString()}.</p>
           <button
-            className="mt-2 rounded-xl bg-amber px-3 py-2 text-charcoal"
+            className="mt-2 rounded-xl bg-gradient-to-r from-[#c41e1e] to-[#e85d04] px-3 py-2 text-white font-bold text-xs"
             onClick={() => {
               sessionRef.current?.beginReconnectHandshake()
               setPairRole('host')
@@ -399,14 +413,15 @@ export default function App() {
             onInput={onInput}
             prompt={prompt}
             paused={paused || state.phase === 'drop'}
+            onPause={() => setPaused((p) => !p)}
           />
           {tutorial ? (
-            <div className="absolute inset-x-4 top-24 z-40 rounded-2xl border border-ivory/20 bg-black/75 p-4 text-sm">
-              <p className="text-amber">Field brief</p>
+            <div className="absolute inset-x-4 top-24 z-40 rounded-2xl border border-[#ff6a00]/30 bg-black/85 p-4 text-sm shadow-[0_0_25px_rgba(255,106,0,0.25)]">
+              <p className="text-[#ff6a00] font-black uppercase tracking-wider">Field brief</p>
               <p className="mt-1 text-ivory/80">Left stick moves. Drag the right side to look. Repair the generator at the bunker, then light the beacon on the ridge.</p>
               <p className="mt-1 text-xs text-ivory/50">{currentObjective(state)} · {areaName(me.x, me.z)}</p>
               <button
-                className="mt-3 rounded-xl bg-amber px-3 py-2 text-charcoal"
+                className="mt-3 rounded-xl bg-gradient-to-r from-[#c41e1e] to-[#e85d04] px-4 py-2 text-white font-bold"
                 onClick={() => {
                   saveTutorialSeen()
                   setTutorial(false)
@@ -419,13 +434,41 @@ export default function App() {
         </>
       ) : null}
       {paused ? (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70">
-          <p className="font-display text-3xl">Paused</p>
-          <button className="mt-4 rounded-xl bg-amber px-4 py-2 text-charcoal" onClick={() => setPaused(false)}>Resume</button>
-          <button className="mt-2 text-sm text-ivory/70" onClick={() => { sessionRef.current?.leave(); sessionRef.current = null; setScreen('menu') }}>Quit to menu</button>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="val-panel val-cut-tr max-w-sm w-full p-6 sm:p-8 text-center rounded border border-[#ff6a00]/30 shadow-[0_0_50px_rgba(0,0,0,0.95)] bg-[#0b0a08]/95">
+            <p className="font-display text-4xl text-white tracking-[0.2em] font-black">PAUSED</p>
+            <p className="mt-1 text-xs font-mono text-[#ff8800] uppercase tracking-widest">Tactical Freeze // Sector-04</p>
+            
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                className="w-full rounded-xl bg-gradient-to-r from-[#c41e1e] via-[#e85d04] to-[#ff6a00] py-3 text-white font-black tracking-wider uppercase text-sm shadow-[0_0_20px_rgba(255,106,0,0.4)] hover:brightness-110 active:scale-[0.99] transition cursor-pointer val-cut-btn"
+                data-ui
+                onClick={() => { setPaused(false); document.body.requestPointerLock() }}
+              >
+                Resume Mission
+              </button>
+              
+              <button
+                className="w-full rounded-xl border border-[#ff6a00]/40 bg-[#ff6a00]/15 py-3 text-[#ff8800] font-black tracking-wider uppercase text-xs hover:bg-[#ff6a00]/25 hover:text-white transition cursor-pointer flex items-center justify-center gap-2 val-cut-btn"
+                data-ui
+                onClick={restartMatch}
+              >
+                <span>🔄</span>
+                <span>Restart Match</span>
+              </button>
+
+              <button
+                className="w-full rounded-xl border border-white/15 bg-black/40 py-2.5 text-xs font-mono uppercase text-ivory/60 hover:text-white hover:border-white/30 transition cursor-pointer"
+                data-ui
+                onClick={() => { sessionRef.current?.leave(); sessionRef.current = null; setScreen('menu') }}
+              >
+                Quit to Menu
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
-      {!online ? <div className="absolute left-3 top-[max(0.4rem,env(safe-area-inset-top))] z-40 text-[10px] uppercase tracking-widest text-amber">Offline</div> : null}
+      {!online ? <div className="absolute left-3 top-[max(0.4rem,env(safe-area-inset-top))] z-40 text-[10px] uppercase tracking-widest text-[#ff6a00] font-mono">Offline</div> : null}
     </div>
   )
 }
